@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import type { JobCategoryResult } from "../linkedin/types.js";
 import type { SendEmailResult } from "../email/types.js";
 
@@ -108,4 +108,22 @@ export async function listJobRuns(limit = 20): Promise<JobRunRecord[]> {
   );
 
   return (response.Items ?? []) as JobRunRecord[];
+}
+
+export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null> {
+  const tableName = getTableName();
+
+  if (!tableName) {
+    return null;
+  }
+
+  const stage = process.env.APP_STAGE ?? "dev";
+  const response = await getDocClient().send(
+    new GetCommand({
+      TableName: tableName,
+      Key: { stage, fetchedAt },
+    })
+  );
+
+  return (response.Item as JobRunRecord | undefined) ?? null;
 }

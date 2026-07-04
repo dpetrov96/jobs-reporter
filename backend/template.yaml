@@ -164,6 +164,60 @@ Resources:
         EntryPoints:
           - src/handlers/fetch-jobs.ts
 
+  ListRunsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: List job fetch runs from DynamoDB
+      Handler: list-runs.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref JobRunsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref JobRunsTable
+      Events:
+        ListRunsApi:
+          Type: HttpApi
+          Properties:
+            Path: /runs
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/list-runs.ts
+
+  GetRunFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Get a single job fetch run from DynamoDB
+      Handler: get-run.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref JobRunsTable
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref JobRunsTable
+      Events:
+        GetRunApi:
+          Type: HttpApi
+          Properties:
+            Path: /runs/{fetchedAt}
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-run.ts
+
 Outputs:
   ApiEndpoint:
     Description: HTTP API base URL
@@ -183,3 +237,6 @@ Outputs:
   JobRunsTableArn:
     Description: DynamoDB table ARN
     Value: !GetAtt JobRunsTable.Arn
+  RunsUrl:
+    Description: List runs API endpoint
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/runs"

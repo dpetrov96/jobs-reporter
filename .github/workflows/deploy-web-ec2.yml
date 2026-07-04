@@ -1,0 +1,48 @@
+name: Deploy Web (EC2)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/web/**"
+      - "packages/shared/**"
+      - "scripts/deploy-web-ec2.sh"
+      - ".github/workflows/deploy-web-ec2.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: web-deploy-main
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        env:
+          VITE_API_URL: ${{ vars.VITE_API_URL || 'https://z8q1cuu3g3.execute-api.eu-central-1.amazonaws.com' }}
+        run: npm run build:web
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_DEPLOY_PATH: ${{ vars.EC2_DEPLOY_PATH || '/var/www/jobs-reporter' }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: bash scripts/deploy-web-ec2.sh

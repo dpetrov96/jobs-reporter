@@ -1,34 +1,17 @@
 {
-  "name": "lambda-linkedin-finder",
+  "name": "jobs-reporter",
   "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "workspaces": [
+    "backend",
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "build": "sam build",
-    "local:invoke": "sam local invoke HealthFunction --event events/health-get.json --env-vars env.json",
-    "local:invoke:jobs": "sam local invoke FetchJobsFunction --event events/fetch-jobs-scheduled.json --env-vars env.json",
-    "local:api": "sam local start-api --env-vars env.json",
-    "deploy": "sam build && sam deploy",
-    "deploy:code": "bash scripts/deploy-code.sh",
-    "deploy:guided": "sam deploy --guided",
-    "invoke:jobs": "aws lambda invoke --function-name lambda-linkedin-finder-FetchJobsFunction-7eEN47TavFpY --region eu-central-1 --payload '{}' /dev/null",
-    "logs": "sam logs -n HealthFunction --stack-name lambda-linkedin-finder --tail",
-    "logs:jobs": "aws logs tail /aws/lambda/lambda-linkedin-finder-FetchJobsFunction-7eEN47TavFpY --region eu-central-1 --since 5m",
-    "test:local": "tsx scripts/test-local.ts",
-    "test:fetch-jobs": "tsx scripts/test-fetch-jobs.ts"
-  },
-  "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.840.0",
-    "@aws-sdk/client-sesv2": "^3.840.0",
-    "@aws-sdk/lib-dynamodb": "^3.840.0",
-    "cheerio": "^1.0.0",
-    "esbuild": "^0.25.12",
-    "resend": "^4.6.0"
-  },
-  "devDependencies": {
-    "@types/aws-lambda": "^8.10.150",
-    "@types/node": "^22.15.0",
-    "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "dev:web": "npm run dev -w @jobs-reporter/web",
+    "build:web": "npm run build -w @jobs-reporter/web",
+    "build:backend": "npm run build -w @jobs-reporter/backend",
+    "deploy:backend": "npm run deploy:code -w @jobs-reporter/backend",
+    "deploy:web:ec2": "bash scripts/deploy-web-ec2.sh"
   }
 }

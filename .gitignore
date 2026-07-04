@@ -1,8 +1,11 @@
 node_modules/
+**/node_modules/
 dist/
-.aws-sam/
+backend/.aws-sam/
+apps/web/dist/
 .env
 env.json
+backend/env.json
 
 *.js
 !jest.config.js
@@ -10,5 +13,6 @@ env.json
 .DS_Store
 *.log
 
-# SAM
 samconfig.toml.bak
+**/.aws-sam/
+**/tsconfig.tsbuildinfo

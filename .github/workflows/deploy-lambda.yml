@@ -5,11 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "src/**"
-      - "template.yaml"
-      - "package.json"
-      - "package-lock.json"
-      - "scripts/deploy-code.sh"
+      - "backend/**"
       - ".github/workflows/deploy-lambda.yml"
 
 concurrency:
@@ -46,6 +42,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION || 'eu-central-1' }}
 
       - name: Deploy Lambda code
+        working-directory: backend
         env:
           AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
           STACK_PREFIX: ${{ vars.STACK_PREFIX || 'lambda-linkedin-finder' }}
