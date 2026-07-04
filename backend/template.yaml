@@ -83,26 +83,15 @@ Parameters:
     Default: "r3600"
     Description: LinkedIn f_TPR recency filter (r3600=1h, r86400=24h, r604800=7d)
 
+  RunsTableName:
+    Type: String
+    Default: dev-linkedin-finder-runs
+    Description: Existing DynamoDB table for fetch run history
+
 Conditions:
   UseSes: !Equals [!Ref EmailProvider, ses]
 
 Resources:
-  JobRunsTable:
-    Type: AWS::DynamoDB::Table
-    Properties:
-      TableName: !Sub "${AppStage}-linkedin-finder-runs"
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: stage
-          AttributeType: S
-        - AttributeName: fetchedAt
-          AttributeType: S
-      KeySchema:
-        - AttributeName: stage
-          KeyType: HASH
-        - AttributeName: fetchedAt
-          KeyType: RANGE
-
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -144,10 +133,10 @@ Resources:
       MemorySize: 512
       Environment:
         Variables:
-          RUNS_TABLE_NAME: !Ref JobRunsTable
+          RUNS_TABLE_NAME: !Ref RunsTableName
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref JobRunsTable
+            TableName: !Ref RunsTableName
       Events:
         Cron:
           Type: Schedule
@@ -172,10 +161,10 @@ Resources:
       Handler: list-runs.handler
       Environment:
         Variables:
-          RUNS_TABLE_NAME: !Ref JobRunsTable
+          RUNS_TABLE_NAME: !Ref RunsTableName
       Policies:
         - DynamoDBReadPolicy:
-            TableName: !Ref JobRunsTable
+            TableName: !Ref RunsTableName
       Events:
         ListRunsApi:
           Type: HttpApi
@@ -199,10 +188,10 @@ Resources:
       Handler: get-run.handler
       Environment:
         Variables:
-          RUNS_TABLE_NAME: !Ref JobRunsTable
+          RUNS_TABLE_NAME: !Ref RunsTableName
       Policies:
         - DynamoDBReadPolicy:
-            TableName: !Ref JobRunsTable
+            TableName: !Ref RunsTableName
       Events:
         GetRunApi:
           Type: HttpApi
@@ -233,10 +222,10 @@ Outputs:
     Value: !GetAtt FetchJobsFunction.Arn
   JobRunsTableName:
     Description: DynamoDB table for fetch run history
-    Value: !Ref JobRunsTable
+    Value: !Ref RunsTableName
   JobRunsTableArn:
     Description: DynamoDB table ARN
-    Value: !GetAtt JobRunsTable.Arn
+    Value: !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${RunsTableName}"
   RunsUrl:
     Description: List runs API endpoint
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/runs"
