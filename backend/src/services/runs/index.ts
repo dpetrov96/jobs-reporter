@@ -88,11 +88,19 @@ export async function saveJobRun(
   return { saved: true, tableName, fetchedAt: input.fetchedAt };
 }
 
-export async function listJobRuns(limit = 20): Promise<JobRunRecord[]> {
+export interface ListJobRunsResult {
+  runs: JobRunRecord[];
+  nextCursor?: string;
+}
+
+export async function listJobRuns(
+  limit = 20,
+  cursor?: string
+): Promise<ListJobRunsResult> {
   const tableName = getTableName();
 
   if (!tableName) {
-    return [];
+    return { runs: [] };
   }
 
   const stage = process.env.APP_STAGE ?? "dev";
@@ -104,10 +112,19 @@ export async function listJobRuns(limit = 20): Promise<JobRunRecord[]> {
       ExpressionAttributeValues: { ":stage": stage },
       ScanIndexForward: false,
       Limit: limit,
+      ...(cursor
+        ? { ExclusiveStartKey: { stage, fetchedAt: cursor } }
+        : {}),
     })
   );
 
-  return (response.Items ?? []) as JobRunRecord[];
+  const runs = (response.Items ?? []) as JobRunRecord[];
+  const nextCursor =
+    typeof response.LastEvaluatedKey?.fetchedAt === "string"
+      ? response.LastEvaluatedKey.fetchedAt
+      : undefined;
+
+  return { runs, nextCursor };
 }
 
 export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null> {

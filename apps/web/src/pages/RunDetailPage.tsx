@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchRun, formatRunDate } from "@jobs-reporter/shared";
+import { fetchRun } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
-import { CategoryBlock } from "../components/CategoryBlock";
+import { RunReport } from "../components/RunReport";
 
 export function RunDetailPage({ apiUrl }: { apiUrl: string }) {
   const { fetchedAt = "" } = useParams();
@@ -44,28 +44,9 @@ export function RunDetailPage({ apiUrl }: { apiUrl: string }) {
   return (
     <main className="content">
       <Link to="/" className="back-link">
-        ← All runs
+        ← Latest report
       </Link>
-
-      <div className="panel-head">
-        <div>
-          <h2>{formatRunDate(run.fetchedAt)}</h2>
-          <p className="subtitle">
-            {run.location} · {run.postedWithinLabel} · {run.totalJobs} jobs
-          </p>
-        </div>
-        <span className={`status ${run.emailSent ? "ok" : "muted"}`}>
-          {run.emailSent ? "Email sent" : run.emailReason ?? "Email skipped"}
-        </span>
-      </div>
-
-      {run.categories.map((category) => (
-        <CategoryBlock
-          key={category.keyword}
-          category={category}
-          postedWithinLabel={run.postedWithinLabel}
-        />
-      ))}
+      <RunReport run={run} />
     </main>
   );
 }

@@ -16,3 +16,5 @@ backend/env.json
 samconfig.toml.bak
 **/.aws-sam/
 **/tsconfig.tsbuildinfo
+.ec2/
+apps/web/.env

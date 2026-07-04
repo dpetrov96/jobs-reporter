@@ -1,4 +1,4 @@
-import type { GetRunResponse, ListRunsResponse } from "./types.js";
+import type { FetchRunsOptions, GetRunResponse, ListRunsResponse } from "./types.js";
 
 async function parseJson<T>(response: Response): Promise<T> {
   const data = (await response.json()) as T & { error?: string };
@@ -14,9 +14,14 @@ async function parseJson<T>(response: Response): Promise<T> {
   return data;
 }
 
-export async function fetchRuns(baseUrl: string, limit = 20): Promise<ListRunsResponse> {
+export async function fetchRuns(
+  baseUrl: string,
+  options: FetchRunsOptions = {}
+): Promise<ListRunsResponse> {
+  const { limit = 20, cursor } = options;
   const url = new URL("/runs", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
   url.searchParams.set("limit", String(limit));
+  if (cursor) url.searchParams.set("cursor", cursor);
   const response = await fetch(url.toString());
   return parseJson<ListRunsResponse>(response);
 }

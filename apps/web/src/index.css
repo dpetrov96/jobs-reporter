@@ -76,6 +76,52 @@ button { font: inherit; cursor: pointer; }
 
 .content { display: grid; gap: 14px; }
 
+.latest-run,
+.history-section {
+  display: grid;
+  gap: 14px;
+}
+
+.history-section {
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.run-report-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pagination-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.ghost-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .back-link {
   color: var(--accent);
   font-size: 0.9rem;

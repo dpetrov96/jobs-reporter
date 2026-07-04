@@ -31,10 +31,16 @@ export interface JobRunRecord {
   emailReason?: string;
 }
 
+export interface FetchRunsOptions {
+  limit?: number;
+  cursor?: string;
+}
+
 export interface ListRunsResponse {
   ok: boolean;
   count: number;
   runs: JobRunRecord[];
+  nextCursor?: string;
   error?: string;
 }
 
