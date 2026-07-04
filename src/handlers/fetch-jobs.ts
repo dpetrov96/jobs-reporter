@@ -12,7 +12,7 @@ export const handler: ScheduledHandler = async () => {
   const postedWithin = resolvePostedWithin();
   const postedWithinLabel = formatPostedWithinLabel(postedWithin);
 
-  console.log(`[fetch-jobs] starting multi-category search location="${location}"`);
+  console.log(`[fetch-jobs] starting search location="${location}" (ci-test-v1)`);
 
   const categories = await fetchBulgariaJobsByCategories();
   const meta = { location, fetchedAt, postedWithinLabel, categories };
