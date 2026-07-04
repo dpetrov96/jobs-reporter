@@ -16,7 +16,7 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = false
 resolve_s3 = true
 region = "eu-central-1"
-parameter_overrides = "AppStage=\"dev\" EmailProvider=\"resend\" EmailFrom=\"LinkedIn Finder <onboarding@resend.dev>\" ReportEmailTo=\"dimitar@dimitar.ai\" JobKeywords=\"node.js,python,ai engineer,fullstack,react native,front-end\" JobLocation=\"Bulgaria\" LinkedInGeoId=\"105333783\" JobPostedWithin=\"r3600\" RunsTableName=\"dev-linkedin-finder-runs\""
+parameter_overrides = "AppStage=\"dev\" EmailProvider=\"resend\" EmailFrom=\"LinkedIn Finder <onboarding@resend.dev>\" ReportEmailTo=\"dimitar@dimitar.ai\" JobKeywords=\"node.js,python,ai engineer,fullstack,react native,front-end\" JobCountries=\"NL,DE,FR,BE,GB,PL,BG\" JobLocation=\"Bulgaria\" LinkedInGeoId=\"105333783\" JobPostedWithin=\"r3600\" RunsTableName=\"dev-linkedin-finder-runs\""
 s3_prefix = "lambda-linkedin-finder"
 disable_rollback = true
 image_repositories = []

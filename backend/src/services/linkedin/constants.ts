@@ -8,5 +8,5 @@ export const DEFAULT_JOB_KEYWORDS = [
 ] as const;
 
 export const JOBS_PER_CATEGORY = 20;
-export const REQUEST_DELAY_MS = 2_000;
+export const REQUEST_DELAY_MS = 1_500;
 export const DEFAULT_JOB_POSTED_WITHIN = "r3600";

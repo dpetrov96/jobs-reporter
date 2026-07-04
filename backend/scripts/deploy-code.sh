@@ -15,6 +15,7 @@ lookup_fn() {
 
 echo "Building to $BUILD_DIR..."
 cd "$ROOT"
+cp "$ROOT/../packages/shared/src/countries.ts" "$ROOT/src/shared/countries.ts"
 sam build --build-dir "$BUILD_DIR"
 
 FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction)

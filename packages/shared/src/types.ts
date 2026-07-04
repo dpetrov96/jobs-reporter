@@ -1,3 +1,5 @@
+import { enrichCountryRun, getCountryFlag, lookupCountry } from "./countries.js";
+
 export interface JobListing {
   id: string;
   linkedInJobId: string;
@@ -17,6 +19,15 @@ export interface JobCategoryResult {
   jobs: JobListing[];
 }
 
+export interface CountryRunResult {
+  location: string;
+  geoId: string;
+  flag: string;
+  code: string;
+  totalJobs: number;
+  categories: JobCategoryResult[];
+}
+
 export interface JobRunRecord {
   stage: string;
   fetchedAt: string;
@@ -24,11 +35,14 @@ export interface JobRunRecord {
   postedWithin: string;
   postedWithinLabel: string;
   totalJobs: number;
+  countryCount: number;
   categoryCount: number;
-  categories: JobCategoryResult[];
+  countries: CountryRunResult[];
   emailSent: boolean;
   emailSkipped: boolean;
   emailReason?: string;
+  /** @deprecated Legacy single-country runs */
+  categories?: JobCategoryResult[];
 }
 
 export interface FetchRunsOptions {
@@ -66,4 +80,45 @@ export function formatRunDate(iso: string): string {
 
 export function encodeRunId(fetchedAt: string): string {
   return encodeURIComponent(fetchedAt);
+}
+
+export function normalizeRun(run: JobRunRecord): JobRunRecord {
+  if (run.countries?.length) {
+    return {
+      ...run,
+      countryCount: run.countryCount ?? run.countries.length,
+      categoryCount:
+        run.categoryCount ??
+        run.countries.reduce((sum, country) => sum + country.categories.length, 0),
+      countries: run.countries.map((country) => enrichCountryRun(country)),
+    };
+  }
+
+  const legacyCategories = run.categories ?? [];
+  const totalJobs =
+    run.totalJobs ?? legacyCategories.reduce((sum, category) => sum + category.jobs.length, 0);
+  const legacyCountry = lookupCountry(run.location);
+  const code = legacyCountry?.code ?? run.location.slice(0, 2).toUpperCase();
+
+  return {
+    ...run,
+    totalJobs,
+    countryCount: 1,
+    categoryCount: legacyCategories.length,
+    countries: [
+      enrichCountryRun({
+        location: run.location,
+        geoId: legacyCountry?.geoId ?? "",
+        flag: getCountryFlag(code, run.location),
+        code,
+        totalJobs,
+        categories: legacyCategories,
+      }),
+    ],
+  };
+}
+
+export function countActiveCountries(run: JobRunRecord): number {
+  const normalized = normalizeRun(run);
+  return normalized.countries.filter((country) => country.totalJobs > 0).length;
 }

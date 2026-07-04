@@ -6,6 +6,11 @@ import {
   REQUEST_DELAY_MS,
 } from "./constants.js";
 import {
+  type JobCountry,
+  resolveJobCountries,
+  summarizeCountries,
+} from "./countries.js";
+import {
   buildLinkedInSearchUrl,
   diagnoseLinkedInSearchHtml,
   LINKEDIN_BULGARIA_GEO_ID,
@@ -17,14 +22,25 @@ import { filterJobsWithinPostedWindow, sortJobsByNewest, postedWithinToSeconds }
 import type { JobCategoryResult, JobListing } from "./types.js";
 
 export type { JobCategoryResult, JobListing };
+export type { JobCountry } from "./countries.js";
+export { JOB_COUNTRY_REGISTRY, resolveJobCountries, summarizeCountries } from "./countries.js";
 
-export interface FetchBulgariaJobsOptions {
+export interface FetchJobsOptions {
   keyword?: string;
   keywords?: string[];
   limit?: number;
   location?: string;
   geoId?: string;
   postedWithin?: string;
+}
+
+export interface CountryRunResult {
+  location: string;
+  geoId: string;
+  flag: string;
+  code: string;
+  totalJobs: number;
+  categories: JobCategoryResult[];
 }
 
 function sleep(ms: number): Promise<void> {
@@ -68,17 +84,17 @@ async function fetchKeywordJobs(options: {
       postedWithin,
     });
 
-    console.log(`[linkedin] search keyword="${keyword}" start=${start}`);
+    console.log(`[linkedin] search keyword="${keyword}" location="${location}" start=${start}`);
 
     const html = await fetchLinkedInHtml(pageUrl);
     const diag = diagnoseLinkedInSearchHtml(html);
     console.log(
-      `[linkedin] "${keyword}" page start=${start}: cards=${diag.jobCards} blocked=${diag.isBlocked}`
+      `[linkedin] "${keyword}" @ ${location} start=${start}: cards=${diag.jobCards} blocked=${diag.isBlocked}`
     );
 
     if (diag.isBlocked) {
       throw new Error(
-        `LinkedIn blocked guest API for "${keyword}". Try again later or reduce fetch frequency.`
+        `LinkedIn blocked guest API for "${keyword}" in ${location}. Try again later or reduce fetch frequency.`
       );
     }
 
@@ -107,25 +123,8 @@ async function fetchKeywordJobs(options: {
   return sortJobsByNewest(filtered).slice(0, limit);
 }
 
-export async function fetchBulgariaJobs(
-  options: FetchBulgariaJobsOptions = {}
-): Promise<JobListing[]> {
-  const keyword = options.keyword ?? parseJobKeywords(process.env.JOB_KEYWORDS)[0];
-  const limit = options.limit ?? LINKEDIN_PER_PAGE;
-  const location = options.location ?? process.env.JOB_LOCATION ?? LINKEDIN_LOCATION;
-  const geoId = options.geoId ?? process.env.LINKEDIN_GEO_ID ?? LINKEDIN_BULGARIA_GEO_ID;
-  const postedWithin = resolvePostedWithin(options.postedWithin);
-
-  console.log(`[linkedin] single search keyword="${keyword}" location="${location}" geoId=${geoId}`);
-
-  const jobs = await fetchKeywordJobs({ keyword, limit, location, geoId, postedWithin });
-  console.log(`[linkedin] parsed ${jobs.length} job(s) for "${keyword}"`);
-
-  return jobs;
-}
-
-export async function fetchBulgariaJobsByCategories(
-  options: FetchBulgariaJobsOptions = {}
+export async function fetchJobsByCategories(
+  options: FetchJobsOptions = {}
 ): Promise<JobCategoryResult[]> {
   const keywords = options.keywords ?? parseJobKeywords(process.env.JOB_KEYWORDS);
   const limit = options.limit ?? JOBS_PER_CATEGORY;
@@ -142,7 +141,7 @@ export async function fetchBulgariaJobsByCategories(
   for (const [index, keyword] of keywords.entries()) {
     const jobs = await fetchKeywordJobs({ keyword, limit, location, geoId, postedWithin });
     results.push({ keyword, jobs });
-    console.log(`[linkedin] category "${keyword}": ${jobs.length} newest job(s)`);
+    console.log(`[linkedin] ${location} / "${keyword}": ${jobs.length} job(s)`);
 
     if (index < keywords.length - 1) {
       await sleep(REQUEST_DELAY_MS);
@@ -151,3 +150,55 @@ export async function fetchBulgariaJobsByCategories(
 
   return results;
 }
+
+export async function fetchJobsForCountries(
+  countries: JobCountry[] = resolveJobCountries(),
+  options: FetchJobsOptions = {}
+): Promise<CountryRunResult[]> {
+  const results: CountryRunResult[] = [];
+
+  for (const [index, country] of countries.entries()) {
+    const categories = await fetchJobsByCategories({
+      ...options,
+      location: country.location,
+      geoId: country.geoId,
+    });
+
+    const totalJobs = categories.reduce((sum, category) => sum + category.jobs.length, 0);
+    results.push({
+      location: country.location,
+      geoId: country.geoId,
+      flag: country.flag,
+      code: country.code,
+      totalJobs,
+      categories,
+    });
+
+    console.log(`[linkedin] ${country.flag} ${country.location}: ${totalJobs} job(s)`);
+
+    if (index < countries.length - 1) {
+      await sleep(REQUEST_DELAY_MS);
+    }
+  }
+
+  return results;
+}
+
+/** @deprecated Use fetchJobsByCategories */
+export const fetchBulgariaJobsByCategories = fetchJobsByCategories;
+
+/** @deprecated Use fetchJobsByCategories */
+export async function fetchBulgariaJobs(options: FetchJobsOptions = {}): Promise<JobListing[]> {
+  const keyword = options.keyword ?? parseJobKeywords(process.env.JOB_KEYWORDS)[0];
+  const limit = options.limit ?? LINKEDIN_PER_PAGE;
+  const location = options.location ?? process.env.JOB_LOCATION ?? LINKEDIN_LOCATION;
+  const geoId = options.geoId ?? process.env.LINKEDIN_GEO_ID ?? LINKEDIN_BULGARIA_GEO_ID;
+  const postedWithin = resolvePostedWithin(options.postedWithin);
+
+  const jobs = await fetchKeywordJobs({ keyword, limit, location, geoId, postedWithin });
+  console.log(`[linkedin] parsed ${jobs.length} job(s) for "${keyword}" in ${location}`);
+
+  return jobs;
+}
+
+export type FetchBulgariaJobsOptions = FetchJobsOptions;

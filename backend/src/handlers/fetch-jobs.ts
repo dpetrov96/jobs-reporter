@@ -1,23 +1,35 @@
 import type { ScheduledHandler } from "aws-lambda";
 import {
-  fetchBulgariaJobsByCategories,
+  fetchJobsForCountries,
+  resolveJobCountries,
   resolvePostedWithin,
+  summarizeCountries,
 } from "../services/linkedin/index.js";
 import { formatPostedWithinLabel } from "../services/linkedin/sort.js";
 import { logJobReport, sendJobReportEmail } from "../services/report/index.js";
 import { saveJobRun } from "../services/runs/index.js";
 
 export const handler: ScheduledHandler = async () => {
-  const location = process.env.JOB_LOCATION ?? "Bulgaria";
+  const countries = resolveJobCountries();
   const fetchedAt = new Date().toISOString();
   const postedWithin = resolvePostedWithin();
   const postedWithinLabel = formatPostedWithinLabel(postedWithin);
+  const location = summarizeCountries(countries);
 
-  console.log(`[fetch-jobs] starting search location="${location}"`);
+  console.log(
+    `[fetch-jobs] starting multi-country search countries=${countries.length} (${location})`
+  );
 
-  const categories = await fetchBulgariaJobsByCategories();
-  const meta = { location, fetchedAt, postedWithin, postedWithinLabel, categories };
-  const totalJobs = categories.reduce((sum, category) => sum + category.jobs.length, 0);
+  const countryResults = await fetchJobsForCountries(countries);
+  const meta = {
+    location,
+    fetchedAt,
+    postedWithin,
+    postedWithinLabel,
+    countries: countryResults,
+    countryCount: countryResults.length,
+  };
+  const totalJobs = countryResults.reduce((sum, country) => sum + country.totalJobs, 0);
 
   logJobReport(meta);
 
@@ -43,5 +55,7 @@ export const handler: ScheduledHandler = async () => {
     );
   }
 
-  console.log(`[fetch-jobs] done — ${categories.length} categories, ${totalJobs} job(s)`);
+  console.log(
+    `[fetch-jobs] done — ${countryResults.length} countries, ${totalJobs} job(s)`
+  );
 };

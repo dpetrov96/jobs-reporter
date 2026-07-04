@@ -1,6 +1,6 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
-import type { JobCategoryResult } from "../linkedin/types.js";
+import type { CountryRunResult } from "../linkedin/index.js";
 import type { SendEmailResult } from "../email/types.js";
 
 export interface JobRunRecord {
@@ -10,8 +10,9 @@ export interface JobRunRecord {
   postedWithin: string;
   postedWithinLabel: string;
   totalJobs: number;
+  countryCount: number;
   categoryCount: number;
-  categories: JobCategoryResult[];
+  countries: CountryRunResult[];
   emailSent: boolean;
   emailSkipped: boolean;
   emailReason?: string;
@@ -22,7 +23,8 @@ export interface SaveJobRunInput {
   fetchedAt: string;
   postedWithin: string;
   postedWithinLabel: string;
-  categories: JobCategoryResult[];
+  countries: CountryRunResult[];
+  countryCount?: number;
 }
 
 export type SaveJobRunResult =
@@ -46,6 +48,10 @@ function getTableName(): string | undefined {
   return process.env.RUNS_TABLE_NAME?.trim() || undefined;
 }
 
+function countCategories(countries: CountryRunResult[]): number {
+  return countries.reduce((sum, country) => sum + country.categories.length, 0);
+}
+
 export async function saveJobRun(
   input: SaveJobRunInput,
   emailResult?: SendEmailResult | null
@@ -61,7 +67,7 @@ export async function saveJobRun(
   }
 
   const stage = process.env.APP_STAGE ?? "dev";
-  const totalJobs = input.categories.reduce((sum, category) => sum + category.jobs.length, 0);
+  const totalJobs = input.countries.reduce((sum, country) => sum + country.totalJobs, 0);
 
   const record: JobRunRecord = {
     stage,
@@ -70,8 +76,9 @@ export async function saveJobRun(
     postedWithin: input.postedWithin,
     postedWithinLabel: input.postedWithinLabel,
     totalJobs,
-    categoryCount: input.categories.length,
-    categories: input.categories,
+    countryCount: input.countryCount ?? input.countries.length,
+    categoryCount: countCategories(input.countries),
+    countries: input.countries,
     emailSent: emailResult?.sent === true,
     emailSkipped: emailResult?.sent === false,
     emailReason:

@@ -1,11 +1,75 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { encodeRunId, fetchRuns, formatRunDate } from "@jobs-reporter/shared";
+import { encodeRunId, fetchRuns, formatRunDate, normalizeRun } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
+import { CountryFlag } from "../components/CountryFlag";
 import { RunHistoryPagination } from "../components/RunHistoryPagination";
 import { RunReport } from "../components/RunReport";
 
 const HISTORY_PAGE_SIZE = 5;
+
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">
+      <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+      {label}
+    </div>
+  );
+}
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+      {message}
+    </div>
+  );
+}
+
+function RunHistoryRow({ run }: { run: JobRunRecord }) {
+  const normalized = normalizeRun(run);
+  const previewCountries = normalized.countries.filter((c) => c.totalJobs > 0).slice(0, 4);
+
+  return (
+    <Link
+      to={`/runs/${encodeRunId(run.fetchedAt)}`}
+      className="group flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-emerald-300 hover:shadow-md sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-emerald-700"
+    >
+      <div className="min-w-0">
+        <div className="font-semibold text-zinc-900 group-hover:text-emerald-700 dark:text-zinc-50 dark:group-hover:text-emerald-400">
+          {formatRunDate(run.fetchedAt)}
+        </div>
+        <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          {normalized.location} · {run.postedWithinLabel} · {normalized.countryCount} countries
+        </div>
+        {previewCountries.length > 0 ? (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {previewCountries.map((country) => (
+              <span
+                key={country.code}
+                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+              >
+                <CountryFlag code={country.code} location={country.location} flag={country.flag} size="sm" />
+                {country.totalJobs}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+        <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+          {run.totalJobs} jobs
+        </span>
+        <span
+          className={`text-xs ${
+            run.emailSent ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"
+          }`}
+        >
+          {run.emailSent ? "Email sent" : "No email"}
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 export function RunListPage({ apiUrl }: { apiUrl: string }) {
   const [latestRun, setLatestRun] = useState<JobRunRecord | null>(null);
@@ -106,62 +170,64 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
     setHistoryPage((current) => Math.max(0, current - 1));
   }
 
-  if (loadingLatest) return <div className="state-box">Loading latest report…</div>;
-  if (error && !latestRun) return <div className="error-box">{error}</div>;
+  if (loadingLatest) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        <LoadingState label="Loading latest report…" />
+      </main>
+    );
+  }
+
+  if (error && !latestRun) {
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+        <ErrorState message={error} />
+      </main>
+    );
+  }
 
   return (
-    <main className="content">
+    <main className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6">
       {!latestRun ? (
-        <div className="state-box">No runs stored yet.</div>
+        <div className="rounded-2xl border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+          No runs stored yet.
+        </div>
       ) : (
-        <section className="latest-run">
-          <div className="section-head">
-            <h2>Latest report</h2>
-            <span className="pill">{latestRun.totalJobs} jobs</span>
+        <section className="space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Latest report</h2>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              {latestRun.totalJobs} jobs · {normalizeRun(latestRun).countryCount} countries
+            </span>
           </div>
           <RunReport run={latestRun} />
         </section>
       )}
 
       {latestRun && (
-        <section className="history-section">
-          <div className="section-head">
-            <h2>Previous runs</h2>
+        <section className="space-y-4 border-t border-zinc-200 pt-8 dark:border-zinc-800">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">Previous runs</h2>
             {!loadingHistory && (
-              <span className="pill">
+              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
                 {historyRuns.length === 0 ? "No older runs" : `Page ${historyPage + 1}`}
               </span>
             )}
           </div>
 
-          {error && latestRun ? <div className="error-box">{error}</div> : null}
+          {error && latestRun ? <ErrorState message={error} /> : null}
 
           {loadingHistory ? (
-            <div className="state-box">Loading previous runs…</div>
+            <LoadingState label="Loading previous runs…" />
           ) : historyRuns.length === 0 ? (
-            <div className="state-box">No previous runs yet.</div>
+            <div className="rounded-2xl border border-dashed border-zinc-300 px-4 py-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              No previous runs yet.
+            </div>
           ) : (
             <>
-              <div className="run-table">
+              <div className="space-y-3">
                 {historyRuns.map((run) => (
-                  <Link
-                    key={run.fetchedAt}
-                    className="run-row"
-                    to={`/runs/${encodeRunId(run.fetchedAt)}`}
-                  >
-                    <div>
-                      <div className="run-title">{formatRunDate(run.fetchedAt)}</div>
-                      <div className="run-meta">
-                        {run.location} · {run.postedWithinLabel} · {run.categoryCount} keywords
-                      </div>
-                    </div>
-                    <div className="run-stats">
-                      <span className="badge">{run.totalJobs} jobs</span>
-                      <span className={`status ${run.emailSent ? "ok" : "muted"}`}>
-                        {run.emailSent ? "Email sent" : "No email"}
-                      </span>
-                    </div>
-                  </Link>
+                  <RunHistoryRow key={run.fetchedAt} run={run} />
                 ))}
               </div>
 

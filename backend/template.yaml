@@ -17,6 +17,7 @@ Globals:
         RESEND_API_KEY: !Ref ResendApiKey
         APP_STAGE: !Ref AppStage
         JOB_KEYWORDS: !Ref JobKeywords
+        JOB_COUNTRIES: !Ref JobCountries
         JOB_LOCATION: !Ref JobLocation
         LINKEDIN_GEO_ID: !Ref LinkedInGeoId
         JOB_POSTED_WITHIN: !Ref JobPostedWithin
@@ -68,15 +69,20 @@ Parameters:
     Default: "node.js,python,ai engineer,fullstack,react native,front-end"
     Description: Comma-separated LinkedIn search keywords (20 newest per keyword)
 
+  JobCountries:
+    Type: String
+    Default: "NL,DE,FR,BE,GB,PL,BG"
+    Description: Comma-separated country codes (NL,DE,FR,BE,GB,PL,BG) or "all"
+
   JobLocation:
     Type: String
     Default: Bulgaria
-    Description: LinkedIn location filter
+    Description: Legacy single-country fallback for local scripts
 
   LinkedInGeoId:
     Type: String
     Default: "105333783"
-    Description: LinkedIn geoId for Bulgaria
+    Description: Legacy single-country geoId fallback
 
   JobPostedWithin:
     Type: String
@@ -127,9 +133,9 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Description: Fetch LinkedIn jobs from Bulgaria and log a report
+      Description: Fetch LinkedIn jobs across configured countries
       Handler: fetch-jobs.handler
-      Timeout: 180
+      Timeout: 600
       MemorySize: 512
       Environment:
         Variables:
@@ -142,7 +148,7 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: rate(10 minutes)
-            Description: Fetch newest LinkedIn jobs from Bulgaria (last 1 hour)
+            Description: Fetch newest LinkedIn jobs across countries (last 1 hour)
             Enabled: true
     Metadata:
       BuildMethod: esbuild
