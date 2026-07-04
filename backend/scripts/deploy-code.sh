@@ -18,12 +18,13 @@ cd "$ROOT"
 cp "$ROOT/../packages/shared/src/countries.ts" "$ROOT/src/shared/countries.ts"
 sam build --build-dir "$BUILD_DIR"
 
-FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction)
+FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction TriggerFetchFunction)
 BUNDLES=(
   "HealthFunction:health.js"
   "FetchJobsFunction:fetch-jobs.js"
   "ListRunsFunction:list-runs.js"
   "GetRunFunction:get-run.js"
+  "TriggerFetchFunction:trigger-fetch.js"
 )
 
 for fn in "${FUNCTIONS[@]}"; do

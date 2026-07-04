@@ -64,6 +64,26 @@ export interface GetRunResponse {
   error?: string;
 }
 
+export interface TriggerFetchStatusResponse {
+  ok: boolean;
+  canTrigger: boolean;
+  retryAfterSeconds: number;
+  lastManualTriggeredAt?: string;
+  lastRunAt?: string;
+  cooldownMinutes: number;
+  minRunGapMinutes: number;
+  reason?: string;
+  error?: string;
+}
+
+export interface TriggerFetchResponse {
+  ok: boolean;
+  message?: string;
+  error?: string;
+  retryAfterSeconds?: number;
+  cooldownMinutes?: number;
+}
+
 export const DEFAULT_API_URL =
   "https://z8q1cuu3g3.execute-api.eu-central-1.amazonaws.com";
 

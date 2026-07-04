@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.840.0",
+    "@aws-sdk/client-lambda": "^3.840.0",
     "@aws-sdk/client-sesv2": "^3.840.0",
     "@aws-sdk/lib-dynamodb": "^3.840.0",
     "cheerio": "^1.0.0",

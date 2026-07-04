@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { encodeRunId, fetchRuns, formatRunDate, normalizeRun } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
 import { CountryFlag } from "../components/CountryFlag";
 import { RunHistoryPagination } from "../components/RunHistoryPagination";
+import { RunNowButton } from "../components/RunNowButton";
 import { RunReport } from "../components/RunReport";
 
 const HISTORY_PAGE_SIZE = 5;
@@ -81,39 +82,30 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadLatest = useCallback(async () => {
+    setLoadingLatest(true);
+    setError(null);
 
-    async function loadLatest() {
-      setLoadingLatest(true);
-      setError(null);
-
-      try {
-        const response = await fetchRuns(apiUrl, { limit: 1 });
-        if (cancelled) return;
-
-        const latest = response.runs[0] ?? null;
-        setLatestRun(latest);
-        setHistoryPage(0);
-        setHistoryCursors(latest ? [latest.fetchedAt] : []);
-        setHistoryRuns([]);
-        setHistoryNextCursor(undefined);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load latest run");
-          setLatestRun(null);
-          setHistoryCursors([]);
-        }
-      } finally {
-        if (!cancelled) setLoadingLatest(false);
-      }
+    try {
+      const response = await fetchRuns(apiUrl, { limit: 1 });
+      const latest = response.runs[0] ?? null;
+      setLatestRun(latest);
+      setHistoryPage(0);
+      setHistoryCursors(latest ? [latest.fetchedAt] : []);
+      setHistoryRuns([]);
+      setHistoryNextCursor(undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load latest run");
+      setLatestRun(null);
+      setHistoryCursors([]);
+    } finally {
+      setLoadingLatest(false);
     }
-
-    void loadLatest();
-    return () => {
-      cancelled = true;
-    };
   }, [apiUrl]);
+
+  useEffect(() => {
+    void loadLatest();
+  }, [loadLatest]);
 
   useEffect(() => {
     const cursor = historyCursors[historyPage];
@@ -172,7 +164,8 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
 
   if (loadingLatest) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+        <RunNowButton apiUrl={apiUrl} onTriggered={() => void loadLatest()} />
         <LoadingState label="Loading latest report…" />
       </main>
     );
@@ -180,7 +173,8 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
 
   if (error && !latestRun) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+        <RunNowButton apiUrl={apiUrl} onTriggered={() => void loadLatest()} />
         <ErrorState message={error} />
       </main>
     );
@@ -188,6 +182,13 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 px-4 py-6 sm:px-6">
+      <RunNowButton
+        apiUrl={apiUrl}
+        onTriggered={() => {
+          window.setTimeout(() => void loadLatest(), 5000);
+        }}
+      />
+
       {!latestRun ? (
         <div className="rounded-2xl border border-dashed border-zinc-300 px-4 py-10 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
           No runs stored yet.

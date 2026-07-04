@@ -1,0 +1,26 @@
+{
+  "version": "2.0",
+  "routeKey": "GET /runs/trigger",
+  "rawPath": "/runs/trigger",
+  "headers": {
+    "accept": "application/json"
+  },
+  "requestContext": {
+    "accountId": "123456789012",
+    "apiId": "api-id",
+    "domainName": "localhost",
+    "http": {
+      "method": "GET",
+      "path": "/runs/trigger",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "curl/8.0"
+    },
+    "requestId": "test-request-id",
+    "routeKey": "GET /runs/trigger",
+    "stage": "$default",
+    "time": "04/Jul/2026:10:00:00 +0000",
+    "timeEpoch": 1780000000000
+  },
+  "isBase64Encoded": false
+}

@@ -30,6 +30,7 @@ Globals:
         - Authorization
       AllowMethods:
         - GET
+        - POST
         - OPTIONS
 
 Parameters:
@@ -93,6 +94,16 @@ Parameters:
     Type: String
     Default: dev-linkedin-finder-runs
     Description: Existing DynamoDB table for fetch run history
+
+  ManualFetchCooldownMinutes:
+    Type: Number
+    Default: 30
+    Description: Minimum minutes between manual UI fetch triggers
+
+  ManualFetchMinGapMinutes:
+    Type: Number
+    Default: 5
+    Description: Block manual trigger if any run finished within this many minutes
 
 Conditions:
   UseSes: !Equals [!Ref EmailProvider, ses]
@@ -212,6 +223,45 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-run.ts
+
+  TriggerFetchFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Manual fetch trigger with strict rate limiting
+      Handler: trigger-fetch.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          FETCH_JOBS_FUNCTION_ARN: !GetAtt FetchJobsFunction.Arn
+          MANUAL_FETCH_COOLDOWN_MINUTES: !Ref ManualFetchCooldownMinutes
+          MANUAL_FETCH_MIN_GAP_MINUTES: !Ref ManualFetchMinGapMinutes
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RunsTableName
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt FetchJobsFunction.Arn
+      Events:
+        TriggerFetchStatusApi:
+          Type: HttpApi
+          Properties:
+            Path: /runs/trigger
+            Method: get
+        TriggerFetchPostApi:
+          Type: HttpApi
+          Properties:
+            Path: /runs/trigger
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/trigger-fetch.ts
 
 Outputs:
   ApiEndpoint:
