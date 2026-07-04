@@ -1,0 +1,12 @@
+node_modules/
+.aws-sam/
+.git/
+*.log
+env.json
+.env
+.DS_Store
+scripts/
+events/
+src/
+tsconfig.json
+samconfig.toml

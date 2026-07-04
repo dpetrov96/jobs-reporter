@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.aws-sam/
+.env
+env.json
+
+*.js
+!jest.config.js
+
+.DS_Store
+*.log
+
+# SAM
+samconfig.toml.bak

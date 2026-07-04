@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: LinkedIn job finder — serverless (SAM)
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        EMAIL_PROVIDER: !Ref EmailProvider
+        EMAIL_FROM: !Ref EmailFrom
+        REPORT_EMAIL_TO: !Ref ReportEmailTo
+        RESEND_API_KEY: !Ref ResendApiKey
+        APP_STAGE: !Ref AppStage
+        JOB_KEYWORDS: !Ref JobKeywords
+        JOB_LOCATION: !Ref JobLocation
+        LINKEDIN_GEO_ID: !Ref LinkedInGeoId
+        JOB_POSTED_WITHIN: !Ref JobPostedWithin
+  HttpApi:
+    CorsConfiguration:
+      AllowOrigins:
+        - "*"
+      AllowHeaders:
+        - Content-Type
+        - Authorization
+      AllowMethods:
+        - GET
+        - OPTIONS
+
+Parameters:
+  AppStage:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - prod
+
+  EmailProvider:
+    Type: String
+    Default: resend
+    AllowedValues:
+      - resend
+      - ses
+    Description: resend = easier local dev; ses = native AWS (verify domain in SES first)
+
+  EmailFrom:
+    Type: String
+    Default: "LinkedIn Finder <onboarding@resend.dev>"
+    Description: Sender address (Resend test domain or verified SES identity)
+
+  ReportEmailTo:
+    Type: String
+    Default: ""
+    Description: Default recipient for job reports and test emails
+
+  ResendApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Required when EmailProvider=resend
+
+  JobKeywords:
+    Type: String
+    Default: "node.js,python,ai engineer,fullstack,react native,front-end"
+    Description: Comma-separated LinkedIn search keywords (20 newest per keyword)
+
+  JobLocation:
+    Type: String
+    Default: Bulgaria
+    Description: LinkedIn location filter
+
+  LinkedInGeoId:
+    Type: String
+    Default: "105333783"
+    Description: LinkedIn geoId for Bulgaria
+
+  JobPostedWithin:
+    Type: String
+    Default: "r3600"
+    Description: LinkedIn f_TPR recency filter (r3600=1h, r86400=24h, r604800=7d)
+
+Conditions:
+  UseSes: !Equals [!Ref EmailProvider, ses]
+
+Resources:
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Health check and optional test email
+      Handler: health.handler
+      Policies:
+        - !If
+          - UseSes
+          - Statement:
+              - Effect: Allow
+                Action:
+                  - ses:SendEmail
+                  - ses:SendRawEmail
+                Resource: "*"
+          - !Ref AWS::NoValue
+      Events:
+        HealthApi:
+          Type: HttpApi
+          Properties:
+            Path: /health
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/health.ts
+
+  FetchJobsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Fetch LinkedIn jobs from Bulgaria and log a report
+      Handler: fetch-jobs.handler
+      Timeout: 180
+      MemorySize: 512
+      Events:
+        Cron:
+          Type: Schedule
+          Properties:
+            Schedule: rate(10 minutes)
+            Description: Fetch newest LinkedIn jobs from Bulgaria (last 1 hour)
+            Enabled: true
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/fetch-jobs.ts
+
+Outputs:
+  ApiEndpoint:
+    Description: HTTP API base URL
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  HealthUrl:
+    Description: Health check endpoint
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/health"
+  HealthFunctionArn:
+    Description: Health Lambda ARN
+    Value: !GetAtt HealthFunction.Arn
+  FetchJobsFunctionArn:
+    Description: Fetch jobs Lambda ARN
+    Value: !GetAtt FetchJobsFunction.Arn

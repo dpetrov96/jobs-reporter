@@ -1,0 +1,11 @@
+{
+  "version": "0",
+  "id": "local-scheduled-event",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "123456789012",
+  "time": "2026-07-04T19:00:00Z",
+  "region": "eu-central-1",
+  "resources": ["arn:aws:events:eu-central-1:123456789012:rule/fetch-jobs-cron"],
+  "detail": {}
+}

@@ -1,0 +1,28 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "lambda-linkedin-finder"
+region = "eu-central-1"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "eu-central-1"
+parameter_overrides = "AppStage=\"dev\" EmailProvider=\"resend\" EmailFrom=\"LinkedIn Finder <onboarding@resend.dev>\" ReportEmailTo=\"\" JobKeywords=\"developer\" JobLocation=\"Bulgaria\" LinkedInGeoId=\"105333783\""
+s3_prefix = "lambda-linkedin-finder"
+disable_rollback = true
+image_repositories = []
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_invoke.parameters]
+warm_containers = "EAGER"
