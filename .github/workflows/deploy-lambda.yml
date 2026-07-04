@@ -50,3 +50,67 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
           STACK_PREFIX: ${{ vars.STACK_PREFIX || 'lambda-linkedin-finder' }}
         run: bash scripts/deploy-code.sh
+
+      - name: Notify deploy success
+        if: success()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DEPLOY_NOTIFY_EMAIL: ${{ vars.DEPLOY_NOTIFY_EMAIL || 'dimitar@dimitar.ai' }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'LinkedIn Finder <onboarding@resend.dev>' }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "RESEND_API_KEY not set — skipping deploy email"
+            exit 0
+          fi
+
+          SUBJECT="[jobs-reporter] Lambda deploy succeeded (${GITHUB_SHA:0:7})"
+          HTML="<p>Deploy to <strong>eu-central-1</strong> completed successfully.</p>
+          <ul>
+            <li>Branch: <code>${GITHUB_REF_NAME}</code></li>
+            <li>Commit: <code>${GITHUB_SHA:0:7}</code></li>
+            <li>Message: ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}</li>
+            <li>Actor: ${GITHUB_ACTOR}</li>
+            <li><a href=\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\">View workflow run</a></li>
+          </ul>"
+
+          curl -sS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -nc \
+              --arg from "$EMAIL_FROM" \
+              --arg to "$DEPLOY_NOTIFY_EMAIL" \
+              --arg subject "$SUBJECT" \
+              --arg html "$HTML" \
+              '{from: $from, to: [$to], subject: $subject, html: $html}')"
+
+      - name: Notify deploy failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DEPLOY_NOTIFY_EMAIL: ${{ vars.DEPLOY_NOTIFY_EMAIL || 'dimitar@dimitar.ai' }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'LinkedIn Finder <onboarding@resend.dev>' }}
+        run: |
+          if [ -z "$RESEND_API_KEY" ]; then
+            echo "RESEND_API_KEY not set — skipping deploy email"
+            exit 0
+          fi
+
+          SUBJECT="[jobs-reporter] Lambda deploy FAILED (${GITHUB_SHA:0:7})"
+          HTML="<p>Deploy to <strong>eu-central-1</strong> failed.</p>
+          <ul>
+            <li>Branch: <code>${GITHUB_REF_NAME}</code></li>
+            <li>Commit: <code>${GITHUB_SHA:0:7}</code></li>
+            <li>Message: ${GITHUB_EVENT_HEAD_COMMIT_MESSAGE}</li>
+            <li>Actor: ${GITHUB_ACTOR}</li>
+            <li><a href=\"${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\">View workflow run</a></li>
+          </ul>"
+
+          curl -sS -X POST https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -nc \
+              --arg from "$EMAIL_FROM" \
+              --arg to "$DEPLOY_NOTIFY_EMAIL" \
+              --arg subject "$SUBJECT" \
+              --arg html "$HTML" \
+              '{from: $from, to: [$to], subject: $subject, html: $html}')"
