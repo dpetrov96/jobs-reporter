@@ -87,6 +87,22 @@ Conditions:
   UseSes: !Equals [!Ref EmailProvider, ses]
 
 Resources:
+  JobRunsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AppStage}-linkedin-finder-runs"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: stage
+          AttributeType: S
+        - AttributeName: fetchedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: stage
+          KeyType: HASH
+        - AttributeName: fetchedAt
+          KeyType: RANGE
+
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -126,6 +142,12 @@ Resources:
       Handler: fetch-jobs.handler
       Timeout: 180
       MemorySize: 512
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref JobRunsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref JobRunsTable
       Events:
         Cron:
           Type: Schedule
@@ -155,3 +177,9 @@ Outputs:
   FetchJobsFunctionArn:
     Description: Fetch jobs Lambda ARN
     Value: !GetAtt FetchJobsFunction.Arn
+  JobRunsTableName:
+    Description: DynamoDB table for fetch run history
+    Value: !Ref JobRunsTable
+  JobRunsTableArn:
+    Description: DynamoDB table ARN
+    Value: !GetAtt JobRunsTable.Arn
