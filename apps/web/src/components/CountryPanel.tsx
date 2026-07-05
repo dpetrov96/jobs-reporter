@@ -10,15 +10,14 @@ export function CountryPanel({
 }) {
   if (country.totalJobs === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/50 px-4 py-10 text-center sm:py-12">
-        <p className="text-sm font-medium text-zinc-600">No jobs in {country.location}</p>
-        <p className="mt-1 text-xs text-zinc-400">Nothing posted {postedWithinLabel}</p>
-      </div>
+      <p className="py-10 text-center text-sm text-zinc-500">
+        No jobs in {country.location} · nothing posted {postedWithinLabel}
+      </p>
     );
   }
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="divide-y divide-zinc-200">
       {country.categories.map((category, index) => (
         <CategoryBlock
           key={category.keyword}
