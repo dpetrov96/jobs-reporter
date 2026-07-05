@@ -158,7 +158,7 @@ Resources:
         Cron:
           Type: Schedule
           Properties:
-            Schedule: rate(10 minutes)
+            Schedule: rate(1 hour)
             Description: Fetch newest LinkedIn jobs across countries (last 1 hour)
             Enabled: true
     Metadata:
