@@ -1,14 +1,17 @@
 import { useMemo } from "react";
 import type { CountryRunResult } from "@jobs-reporter/shared";
 import { CompanyGroup } from "./CompanyGroup";
+import { ScanStatusBanner } from "./ScanStatusBanner";
 import { groupJobsByCompany } from "../utils/groupByCompany";
 
 export function CountryPanel({
   country,
   postedWithinLabel,
+  isScanning = false,
 }: {
   country: CountryRunResult;
   postedWithinLabel: string;
+  isScanning?: boolean;
 }) {
   const companyGroups = useMemo(
     () => groupJobsByCompany(country.categories),
@@ -16,6 +19,14 @@ export function CountryPanel({
   );
 
   if (country.totalJobs === 0) {
+    if (isScanning) {
+      return (
+        <div className="py-6">
+          <ScanStatusBanner message={`Checking ${country.location} for new listings…`} />
+        </div>
+      );
+    }
+
     return (
       <p className="py-10 text-center text-sm text-zinc-500">
         No jobs in {country.location} · nothing posted {postedWithinLabel}

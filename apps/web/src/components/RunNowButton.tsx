@@ -13,10 +13,14 @@ function formatCooldown(seconds: number): string {
 export function RunNowButton({
   apiUrl,
   onTriggered,
+  onScanStart,
+  onScanEnd,
   compact = false,
 }: {
   apiUrl: string;
   onTriggered?: () => void;
+  onScanStart?: () => void;
+  onScanEnd?: () => void;
   compact?: boolean;
 }) {
   const [canTrigger, setCanTrigger] = useState(false);
@@ -60,18 +64,20 @@ export function RunNowButton({
   }, [retryAfterSeconds, refreshStatus]);
 
   async function handleTrigger() {
+    onScanStart?.();
     setSubmitting(true);
     setError(null);
     setMessage(null);
 
     try {
       const result = await triggerFetch(apiUrl);
-      setMessage("Updating…");
+      setMessage("Checking…");
       setCanTrigger(false);
       setRetryAfterSeconds(result.retryAfterSeconds ?? 1800);
       onTriggered?.();
       void refreshStatus();
     } catch (err) {
+      onScanEnd?.();
       const retry =
         typeof err === "object" && err && "retryAfterSeconds" in err
           ? Number((err as { retryAfterSeconds?: number }).retryAfterSeconds)
@@ -91,7 +97,7 @@ export function RunNowButton({
   const disabled = loading || submitting || !canTrigger;
 
   const label = submitting
-    ? "Updating…"
+    ? "Checking…"
     : canTrigger
       ? "Refresh"
       : `In ${formatCooldown(retryAfterSeconds)}`;
