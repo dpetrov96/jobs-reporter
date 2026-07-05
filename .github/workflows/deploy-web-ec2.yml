@@ -9,6 +9,7 @@ on:
       - "packages/shared/**"
       - "scripts/deploy-web-ec2.sh"
       - ".github/workflows/deploy-web-ec2.yml"
+      - ".github/scripts/notify-deploy.sh"
   workflow_dispatch:
 
 concurrency:
@@ -46,3 +47,23 @@ jobs:
           EC2_DEPLOY_PATH: ${{ vars.EC2_DEPLOY_PATH || '/var/www/jobs-reporter' }}
           EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
         run: bash scripts/deploy-web-ec2.sh
+
+      - name: Notify deploy success
+        if: success()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DEPLOY_NOTIFY_EMAIL: ${{ vars.DEPLOY_NOTIFY_EMAIL || 'dimitar@dimitar.ai' }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'LinkedIn Finder <onboarding@resend.dev>' }}
+        run: |
+          bash .github/scripts/notify-deploy.sh "Web (EC2)" success \
+            "URL: ${{ vars.WEB_URL || 'http://63.181.35.55' }}"
+
+      - name: Notify deploy failure
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          DEPLOY_NOTIFY_EMAIL: ${{ vars.DEPLOY_NOTIFY_EMAIL || 'dimitar@dimitar.ai' }}
+          EMAIL_FROM: ${{ vars.EMAIL_FROM || 'LinkedIn Finder <onboarding@resend.dev>' }}
+        run: |
+          bash .github/scripts/notify-deploy.sh "Web (EC2)" failure \
+            "URL: ${{ vars.WEB_URL || 'http://63.181.35.55' }}"
