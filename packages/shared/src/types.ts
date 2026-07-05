@@ -1,4 +1,5 @@
 import { enrichCountryRun, getCountryFlag, lookupCountry, sortByCountryDisplayOrder } from "./countries.js";
+import { countUniqueJobs } from "./jobCounts.js";
 
 export interface JobListing {
   id: string;
@@ -123,27 +124,30 @@ export function isJobRunRecord(run: unknown): run is JobRunRecord {
 
 export function normalizeRun(run: JobRunRecord): JobRunRecord {
   if (run.countries?.length) {
+    const countries = sortByCountryDisplayOrder(
+      run.countries.map((country) => {
+        const categories = country.categories ?? [];
+        return enrichCountryRun({
+          ...country,
+          categories,
+          totalJobs: countUniqueJobs(categories),
+        });
+      }),
+    );
+
     return {
       ...run,
-      countryCount: run.countryCount ?? run.countries.length,
+      totalJobs: countries.reduce((sum, country) => sum + country.totalJobs, 0),
+      countryCount: run.countryCount ?? countries.length,
       categoryCount:
         run.categoryCount ??
-        run.countries.reduce((sum, country) => sum + (country.categories?.length ?? 0), 0),
-      countries: sortByCountryDisplayOrder(
-        run.countries.map((country) =>
-          enrichCountryRun({
-            ...country,
-            categories: country.categories ?? [],
-          })
-        )
-      ),
+        countries.reduce((sum, country) => sum + (country.categories?.length ?? 0), 0),
+      countries,
     };
   }
 
   const legacyCategories = run.categories ?? [];
-  const totalJobs =
-    run.totalJobs ??
-    legacyCategories.reduce((sum, category) => sum + (category.jobs?.length ?? 0), 0);
+  const totalJobs = countUniqueJobs(legacyCategories);
   const legacyCountry = lookupCountry(run.location);
   const code = legacyCountry?.code ?? run.location?.slice(0, 2).toUpperCase() ?? "XX";
   const location = run.location ?? legacyCountry?.location ?? "Unknown";

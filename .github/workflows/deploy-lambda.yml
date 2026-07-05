@@ -50,6 +50,7 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
         run: |
           cp ../packages/shared/src/countries.ts src/shared/countries.ts
+          cp ../packages/shared/src/jobCounts.ts src/shared/jobCounts.ts
           sam build
           sam deploy --no-confirm-changeset
 

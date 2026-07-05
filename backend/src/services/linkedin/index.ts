@@ -21,6 +21,7 @@ import {
   parseLinkedInJobDetailPage,
 } from "./parser.js";
 import { filterJobsWithinPostedWindow, sortJobsByNewest, postedWithinToSeconds } from "./sort.js";
+import { countUniqueJobs } from "../../shared/jobCounts.js";
 import type { JobCategoryResult, JobListing } from "./types.js";
 
 export type { JobCategoryResult, JobListing };
@@ -203,7 +204,7 @@ export async function fetchJobsForCountries(
       geoId: country.geoId,
     });
 
-    const totalJobs = categories.reduce((sum, category) => sum + category.jobs.length, 0);
+    const totalJobs = countUniqueJobs(categories);
     results.push({
       location: country.location,
       geoId: country.geoId,
