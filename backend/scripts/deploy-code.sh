@@ -16,6 +16,8 @@ lookup_fn() {
 echo "Building to $BUILD_DIR..."
 cd "$ROOT"
 cp "$ROOT/../packages/shared/src/countries.ts" "$ROOT/src/shared/countries.ts"
+# Fallback: CI installs workspace deps at repo root before this script runs.
+export PATH="$ROOT/../node_modules/.bin:$ROOT/node_modules/.bin:$PATH"
 sam build --build-dir "$BUILD_DIR"
 
 FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction TriggerFetchFunction)
