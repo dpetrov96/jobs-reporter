@@ -6,6 +6,7 @@ import {
   workModeLabel,
 } from "@jobs-reporter/shared";
 import type { CompanyGroup as CompanyGroupData } from "../utils/groupByCompany";
+import { formatKeywordBadge } from "@jobs-reporter/shared";
 
 function companyInitials(company: string): string {
   return (
@@ -87,8 +88,11 @@ function CompactJobRow({
           </span>
         </div>
         {job.keyword ? (
-          <span className="hidden shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-500 sm:inline">
-            {job.keyword}
+          <span
+            className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600"
+            title={job.keyword}
+          >
+            {formatKeywordBadge(job.keyword)}
           </span>
         ) : null}
       </a>

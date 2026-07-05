@@ -3,6 +3,7 @@ import { formatApplicants, isJobFreshWithinMinutes } from "../linkedin/jobTime.j
 import type { JobListing } from "../linkedin/types.js";
 import type { CountryRunResult, JobReportMeta } from "./types.js";
 import { groupJobsByCompany } from "./groupByCompany.js";
+import { formatKeywordBadge } from "./keywordLabel.js";
 
 function escapeHtml(value: string): string {
   return value
@@ -62,6 +63,10 @@ function humanizePostedWithin(label: string): string {
   return value.replace(/^the /i, "").replace(/^\w/, (char) => char.toUpperCase());
 }
 
+function countryDisplayName(country: CountryRunResult): string {
+  return country.code === "GB" ? "United Kingdom" : country.location;
+}
+
 function formatJobDateHtml(job: JobListing): string {
   const date = job.dateLabel ?? job.datePosted ?? "Recently";
   const escaped = escapeHtml(date);
@@ -94,28 +99,41 @@ function buildCompanyLogoHtml(group: { company: string; logoUrl?: string }): str
 
 function buildJobRow(job: JobListing, fallbackLocation: string): string {
   const keyword = job.keyword
-    ? `<span class="job-keyword">${escapeHtml(job.keyword)}</span>`
+    ? `<span class="job-keyword">${escapeHtml(formatKeywordBadge(job.keyword))}</span>`
     : "";
 
   return `
     <tr class="job-row">
       <td class="job-cell">
-        <a href="${escapeHtml(job.url)}" class="job-title">${escapeHtml(job.title)}</a>
-        <div class="job-meta">${buildJobMetaHtml(job, fallbackLocation)}</div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="job-title-cell">
+              <a href="${escapeHtml(job.url)}" class="job-title">${escapeHtml(job.title)}</a>
+            </td>
+            <td class="job-keyword-cell">${keyword}</td>
+          </tr>
+          <tr>
+            <td colspan="2" class="job-meta-cell">
+              <div class="job-meta">${buildJobMetaHtml(job, fallbackLocation)}</div>
+            </td>
+          </tr>
+        </table>
       </td>
-      <td class="job-keyword-cell">${keyword}</td>
     </tr>
   `.trim();
 }
 
-function buildCompanySection(group: ReturnType<typeof groupJobsByCompany>[number], fallbackLocation: string): string {
+function buildCompanySection(
+  group: ReturnType<typeof groupJobsByCompany>[number],
+  fallbackLocation: string
+): string {
   const rows = group.jobs.map((job) => buildJobRow(job, fallbackLocation)).join("\n");
   const openingsLabel = group.jobs.length === 1 ? "opening" : "openings";
 
   return `
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="company-block">
       <tr>
-        <td class="company-head" colspan="2">
+        <td class="company-head">
           <table role="presentation" cellpadding="0" cellspacing="0">
             <tr>
               <td class="company-logo-cell">${buildCompanyLogoHtml(group)}</td>
@@ -132,6 +150,24 @@ function buildCompanySection(group: ReturnType<typeof groupJobsByCompany>[number
   `.trim();
 }
 
+function buildCountryPill(country: CountryRunResult): string {
+  const flag = getCountryFlag(country.code, country.location);
+  const label = countryDisplayName(country);
+  const badgeClass = country.totalJobs > 0 ? "country-badge country-badge-active" : "country-badge";
+
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="country-pill">
+      <tr>
+        <td class="country-pill-inner">
+          <span class="country-flag">${flag}</span>
+          <span class="country-label">${escapeHtml(label)}</span>
+          <span class="${badgeClass}">${country.totalJobs}</span>
+        </td>
+      </tr>
+    </table>
+  `.trim();
+}
+
 function buildCountrySection(country: CountryRunResult): string {
   const companyGroups = groupJobsByCompany(country.categories);
 
@@ -139,26 +175,17 @@ function buildCountrySection(country: CountryRunResult): string {
     return "";
   }
 
-  const countryLabel =
-    country.code === "GB" ? "United Kingdom" : country.location;
-  const flag = getCountryFlag(country.code, country.location);
   const companies = companyGroups
     .map((group) => buildCompanySection(group, country.code))
     .join("\n");
 
   return `
     <tr>
-      <td class="country-wrap">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="country-block">
+      <td class="country-section">
+        ${buildCountryPill(country)}
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="country-jobs">
           <tr>
-            <td class="country-head">
-              <span class="country-flag">${flag}</span>
-              <span class="country-label">${escapeHtml(countryLabel)}</span>
-              <span class="country-count">${country.totalJobs}</span>
-            </td>
-          </tr>
-          <tr>
-            <td class="country-body">
+            <td class="country-jobs-inner">
               ${companies}
             </td>
           </tr>
@@ -170,39 +197,45 @@ function buildCountrySection(country: CountryRunResult): string {
 
 const THEME_CSS = `
   body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; color: #18181b; }
-  .email-bg { width: 100%; padding: 12px 10px; background: #fff; }
+  .email-bg { width: 100%; padding: 16px 12px; background: #fff; }
   .email-shell { width: 100%; max-width: 640px; margin: 0 auto; }
-  .summary-head { padding: 8px 12px; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 8px; margin-bottom: 12px; font-size: 12px; line-height: 1.45; color: #52525b; }
+  .summary-head { padding: 8px 12px; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 8px; font-size: 12px; line-height: 1.45; color: #52525b; }
   .summary-strong { font-weight: 600; color: #18181b; }
-  .country-wrap { width: 100%; padding: 0 0 12px 0; }
-  .country-block { width: 100%; border: 1px solid #e4e4e7; border-radius: 10px; overflow: hidden; border-collapse: separate; }
-  .country-head { padding: 10px 12px; background: #fafafa; border-bottom: 1px solid #f4f4f5; }
-  .country-flag { font-size: 15px; margin-right: 6px; vertical-align: middle; }
-  .country-label { font-size: 14px; font-weight: 600; color: #18181b; vertical-align: middle; }
-  .country-count { display: inline-block; margin-left: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; color: #fff; background: #18181b; border-radius: 6px; vertical-align: middle; }
-  .country-body { padding: 0; background: #fff; }
-  .company-block { width: 100%; border-collapse: collapse; border-top: 1px solid #f4f4f5; }
-  .company-block:first-child { border-top: none; }
-  .company-head { padding: 10px 12px; background: rgba(250,250,250,0.8); border-bottom: 1px solid #f4f4f5; }
+  .countries-section { padding: 14px 2px 8px; }
+  .countries-title { font-size: 13px; font-weight: 500; color: #27272a; }
+  .countries-meta { font-size: 12px; color: #a1a1aa; white-space: nowrap; }
+  .country-section { padding: 0 0 18px 0; }
+  .country-pill { margin-bottom: 0; }
+  .country-pill-inner { padding: 10px 14px; background: #fff; border: 1px solid rgba(228,228,231,0.8); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
+  .country-flag { font-size: 16px; margin-right: 8px; vertical-align: middle; }
+  .country-label { font-size: 14px; font-weight: 500; color: #18181b; vertical-align: middle; }
+  .country-badge { display: inline-block; margin-left: 8px; min-width: 20px; padding: 3px 8px; font-size: 11px; font-weight: 600; text-align: center; color: #71717a; background: #e4e4e7; border-radius: 6px; vertical-align: middle; }
+  .country-badge-active { color: #fff; background: #18181b; }
+  .country-jobs-inner { padding-top: 0; border-top: none; }
+  .company-block { width: 100%; border-collapse: collapse; border-top: 1px solid #e4e4e7; }
+  .company-head { padding: 10px 8px; background: rgba(250,250,250,0.8); border-bottom: 1px solid #f4f4f5; }
   .company-logo-cell { width: 40px; padding-right: 12px; vertical-align: middle; }
   .company-logo { display: block; width: 40px; height: 40px; border-radius: 4px; object-fit: cover; background: #f4f4f5; }
   .company-initials { width: 40px; height: 40px; line-height: 40px; text-align: center; font-size: 11px; font-weight: 600; color: #71717a; background: #f4f4f5; border-radius: 4px; }
   .company-name { font-size: 14px; font-weight: 600; color: #18181b; line-height: 1.3; }
   .company-count { margin-top: 2px; font-size: 12px; color: #71717a; }
-  .job-cell { padding: 8px 8px 8px 52px; border-top: 1px solid #f4f4f5; vertical-align: top; }
-  .job-keyword-cell { padding: 8px 12px 8px 0; border-top: 1px solid #f4f4f5; vertical-align: top; width: 1%; white-space: nowrap; }
-  .job-title { display: block; font-size: 14px; font-weight: 500; color: #18181b; text-decoration: none; line-height: 1.35; }
-  .job-meta { margin-top: 2px; font-size: 12px; color: #71717a; line-height: 1.35; }
+  .job-row { border-top: 1px solid #f4f4f5; }
+  .job-cell { padding: 8px 8px 8px 52px; vertical-align: top; }
+  .job-title-cell { vertical-align: top; }
+  .job-title { font-size: 14px; font-weight: 500; color: #18181b; text-decoration: none; line-height: 1.35; }
+  .job-keyword-cell { vertical-align: top; width: 1%; white-space: nowrap; padding-left: 8px; text-align: right; }
+  .job-meta-cell { padding-top: 2px; }
+  .job-meta { font-size: 12px; color: #71717a; line-height: 1.35; }
   .job-date-fresh { color: #059669; font-weight: 600; }
-  .job-keyword { display: inline-block; padding: 2px 6px; font-size: 10px; font-weight: 500; color: #71717a; background: #f4f4f5; border-radius: 4px; }
+  .job-keyword { display: inline-block; padding: 2px 6px; font-size: 10px; font-weight: 500; color: #71717a; background: #f4f4f5; border-radius: 4px; white-space: nowrap; }
   .empty-cell { padding: 14px; font-size: 13px; font-style: italic; color: #71717a; text-align: center; }
 `.trim();
 
 export function buildJobReportHtml(meta: JobReportMeta): string {
   const postedWithinLabel = meta.postedWithinLabel ?? "the selected period";
   const totalJobs = meta.countries.reduce((sum, country) => sum + country.totalJobs, 0);
-  const countriesWithJobs = meta.countries.filter((country) => country.totalJobs > 0).length;
   const sortedCountries = sortByCountryDisplayOrder(meta.countries);
+  const countriesWithJobs = sortedCountries.filter((country) => country.totalJobs > 0).length;
   const when = meta.fetchedAt ? formatRunWhen(meta.fetchedAt) : "Recently";
   const period = humanizePostedWithin(postedWithinLabel);
 
@@ -216,6 +249,21 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
       <td class="empty-cell">No jobs in ${escapeHtml(postedWithinLabel)} across ${meta.countries.length} countries.</td>
     </tr>
   `;
+
+  const countriesLabel = sections
+    ? `
+    <tr>
+      <td class="countries-section">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td class="countries-title">Countries</td>
+            <td align="right" class="countries-meta">${countriesWithJobs}/${sortedCountries.length} with jobs</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `
+    : "";
 
   return `
 <!DOCTYPE html>
@@ -238,6 +286,7 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
                 · <span class="summary-strong">${countriesWithJobs}</span>/${sortedCountries.length} countries
               </td>
             </tr>
+            ${countriesLabel}
             ${body}
           </table>
         </td>
