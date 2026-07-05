@@ -39,7 +39,7 @@ export function RunDetailPage({ apiUrl }: { apiUrl: string }) {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
         <div className="flex items-center gap-3 py-8 text-sm text-zinc-400">
           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-transparent" />
           Loading…
@@ -50,7 +50,7 @@ export function RunDetailPage({ apiUrl }: { apiUrl: string }) {
 
   if (error) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
         <div className="py-4 text-sm text-red-600">{error}</div>
       </main>
     );
@@ -58,14 +58,14 @@ export function RunDetailPage({ apiUrl }: { apiUrl: string }) {
 
   if (!run) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
         <div className="py-12 text-center text-sm text-zinc-400">Run not found.</div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+    <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
       <Link
         to="/"
         className="mb-4 inline-block text-xs text-zinc-400 transition hover:text-zinc-600"

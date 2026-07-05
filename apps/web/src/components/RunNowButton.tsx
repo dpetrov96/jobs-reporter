@@ -89,7 +89,7 @@ export function RunNowButton({
   const disabled = loading || submitting || !canTrigger;
 
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-zinc-100 py-3">
+    <div className="flex flex-col gap-2.5 border-b border-zinc-100 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0 text-xs text-zinc-400">
         {message ?? error ?? "Manual refresh · 30 min cooldown"}
       </div>
@@ -97,7 +97,7 @@ export function RunNowButton({
         type="button"
         disabled={disabled}
         onClick={() => void handleTrigger()}
-        className="shrink-0 rounded-lg bg-zinc-900 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40"
+        className="min-h-11 w-full shrink-0 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition active:scale-[0.98] hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:rounded-lg sm:px-3.5 sm:py-1.5 sm:text-xs"
       >
         {submitting ? "Starting…" : canTrigger ? "Run now" : `Wait ${formatCooldown(retryAfterSeconds)}`}
       </button>

@@ -24,37 +24,42 @@ function ErrorState({ message }: { message: string }) {
 
 function RunHistoryRow({ run }: { run: JobRunRecord }) {
   const normalized = normalizeRun(run);
-  const previewCountries = normalized.countries.filter((c) => c.totalJobs > 0).slice(0, 4);
+  const countriesWithJobs = normalized.countries.filter((c) => c.totalJobs > 0);
+  const activeCount = countriesWithJobs.length;
 
   return (
     <Link
       to={`/runs/${encodeRunId(run.fetchedAt)}`}
-      className="group flex flex-col gap-2 border-b border-zinc-100 py-4 sm:flex-row sm:items-center sm:justify-between"
+      className="group block border-b border-zinc-100 py-4"
     >
-      <div className="min-w-0">
-        <div className="font-medium text-zinc-900 group-hover:text-emerald-700">
-          {formatRunDate(run.fetchedAt)}
-        </div>
-        <div className="mt-0.5 text-xs text-zinc-400">
-          {normalized.location} · {run.postedWithinLabel} · {normalized.countryCount} countries
-        </div>
-        {previewCountries.length > 0 ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {previewCountries.map((country) => (
-              <span
-                key={country.code}
-                className="inline-flex items-center gap-1 text-xs text-zinc-500"
-              >
-                <CountryFlag code={country.code} location={country.location} flag={country.flag} size="sm" />
-                {country.totalJobs}
-              </span>
-            ))}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-medium text-zinc-900 group-hover:text-emerald-700">
+            {formatRunDate(run.fetchedAt)}
           </div>
-        ) : null}
+          <div className="mt-0.5 text-xs text-zinc-400">
+            {run.postedWithinLabel} · {normalized.countryCount} scanned · {activeCount} with jobs
+          </div>
+        </div>
+        <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900">
+          {run.totalJobs} jobs
+        </span>
       </div>
-      <div className="flex shrink-0 items-center gap-3 text-xs text-zinc-400">
-        <span className="tabular-nums text-zinc-600">{run.totalJobs} jobs</span>
-        <span>{run.emailSent ? "Email sent" : "No email"}</span>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {normalized.countries.map((country) => (
+          <span
+            key={country.code}
+            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs ${
+              country.totalJobs > 0
+                ? "bg-zinc-100 text-zinc-700"
+                : "bg-zinc-50 text-zinc-400"
+            }`}
+          >
+            <CountryFlag code={country.code} location={country.location} flag={country.flag} size="sm" />
+            <span className="font-medium tabular-nums">{country.totalJobs}</span>
+          </span>
+        ))}
       </div>
     </Link>
   );
@@ -152,7 +157,7 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
 
   if (loadingLatest) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
         <RunNowButton apiUrl={apiUrl} onTriggered={() => void loadLatest()} />
         <LoadingState label="Loading…" />
       </main>
@@ -161,7 +166,7 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
 
   if (error && !latestRun) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
         <RunNowButton apiUrl={apiUrl} onTriggered={() => void loadLatest()} />
         <ErrorState message={error} />
       </main>
@@ -169,7 +174,7 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-4 sm:px-6">
+    <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
       <RunNowButton
         apiUrl={apiUrl}
         onTriggered={() => {
