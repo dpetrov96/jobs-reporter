@@ -14,8 +14,8 @@ export function RunReport({ run }: { run: JobRunRecord }) {
             {formatRunDate(normalized.fetchedAt)}
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            {normalized.location} · {normalized.postedWithinLabel} · {normalized.totalJobs} jobs ·{" "}
-            {activeCountries}/{normalized.countryCount} active countries
+            {normalized.postedWithinLabel} · {normalized.totalJobs} jobs ·{" "}
+            {normalized.countryCount} scanned · {activeCountries} with jobs
           </p>
         </div>
         <span

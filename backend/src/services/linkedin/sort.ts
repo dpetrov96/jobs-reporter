@@ -23,19 +23,31 @@ function relativeLabelToMs(label: string): number | undefined {
   return undefined;
 }
 
-export function jobPostedAtMs(job: JobListing): number {
-  if (job.datePosted) {
-    const ms = Date.parse(job.datePosted);
-    if (!Number.isNaN(ms)) return ms;
-  }
+function hasTimePrecision(value: string): boolean {
+  return value.includes("T") || /\d{1,2}:\d{2}/.test(value);
+}
 
+export function jobPostedAtMs(job: JobListing): number {
   if (job.dateLabel) {
     const relative = relativeLabelToMs(job.dateLabel);
     if (relative !== undefined) return relative;
   }
 
+  if (job.datePosted) {
+    const ms = Date.parse(job.datePosted);
+    if (!Number.isNaN(ms)) {
+      // LinkedIn guest API often returns date-only datetime (e.g. "2026-07-04").
+      // Parsing that as midnight wrongly drops jobs posted minutes ago.
+      if (!hasTimePrecision(job.datePosted)) {
+        return Date.now();
+      }
+
+      return ms;
+    }
+  }
+
   const numericId = Number(job.linkedInJobId);
-  return Number.isFinite(numericId) ? numericId : 0;
+  return Number.isFinite(numericId) ? numericId : Date.now();
 }
 
 export function sortJobsByNewest(jobs: JobListing[]): JobListing[] {

@@ -64,8 +64,8 @@ export async function sendJobReportEmail(meta: JobReportMeta): Promise<SendEmail
 
   const stage = process.env.APP_STAGE ?? "dev";
   const totalJobs = meta.countries.reduce((sum, country) => sum + country.totalJobs, 0);
-  const activeCountries = meta.countries.filter((country) => country.totalJobs > 0).length;
-  const subject = `[${stage}] LinkedIn — ${totalJobs} jobs across ${activeCountries}/${meta.countries.length} countries`;
+  const countriesWithJobs = meta.countries.filter((country) => country.totalJobs > 0).length;
+  const subject = `[${stage}] LinkedIn — ${totalJobs} jobs · ${countriesWithJobs}/${meta.countries.length} with jobs`;
 
   return sendEmail({
     to: reportTo,

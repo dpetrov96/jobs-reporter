@@ -133,7 +133,7 @@ const THEME_CSS = `
 export function buildJobReportHtml(meta: JobReportMeta): string {
   const postedWithinLabel = meta.postedWithinLabel ?? "the selected period";
   const totalJobs = meta.countries.reduce((sum, country) => sum + country.totalJobs, 0);
-  const activeCountries = meta.countries.filter((country) => country.totalJobs > 0).length;
+  const countriesWithJobs = meta.countries.filter((country) => country.totalJobs > 0).length;
   const sections = meta.countries
     .map((country) => buildCountrySection(country, postedWithinLabel))
     .filter(Boolean)
@@ -161,7 +161,7 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-shell">
             <tr>
               <td class="summary-head">
-                <div class="summary-title">${totalJobs} jobs · ${activeCountries} active countries</div>
+                <div class="summary-title">${totalJobs} jobs · ${meta.countries.length} scanned · ${countriesWithJobs} with jobs</div>
                 <div class="summary-meta">${escapeHtml(meta.location)} · ${escapeHtml(postedWithinLabel)}</div>
               </td>
             </tr>
