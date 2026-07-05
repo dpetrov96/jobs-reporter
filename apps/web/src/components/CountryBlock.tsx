@@ -12,38 +12,39 @@ export function CountryBlock({
   defaultOpen?: boolean;
 }) {
   const hasJobs = country.totalJobs > 0;
+  const categoriesWithJobs = country.categories.filter((c) => c.jobs.length > 0);
+
+  if (!hasJobs) {
+    return (
+      <details className="group border-b border-zinc-100" open={false}>
+        <summary className="flex cursor-pointer list-none items-center gap-2.5 py-4 [&::-webkit-details-marker]:hidden">
+          <CountryFlag code={country.code} location={country.location} flag={country.flag} size="md" />
+          <span className="font-medium text-zinc-800">{country.location}</span>
+          <span className="text-sm text-zinc-400">0</span>
+          <span className="details-chevron ml-auto text-xs text-zinc-300">▾</span>
+        </summary>
+        <p className="pb-4 pl-8 text-sm text-zinc-400">No jobs in {postedWithinLabel}.</p>
+      </details>
+    );
+  }
 
   return (
-    <details
-      className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
-      open={defaultOpen ?? hasJobs}
-    >
-      <summary className="flex cursor-pointer list-none items-center gap-3 border-l-4 border-emerald-500 bg-zinc-50 px-4 py-3 transition hover:bg-emerald-50/60 dark:bg-zinc-900 dark:hover:bg-emerald-950/30 [&::-webkit-details-marker]:hidden">
-        <CountryFlag code={country.code} location={country.location} flag={country.flag} size="lg" />
-        <div className="min-w-0 flex-1">
-          <div className="font-semibold text-zinc-900 dark:text-zinc-50">{country.location}</div>
-          <div className="text-xs text-zinc-500 dark:text-zinc-400">{country.code}</div>
-        </div>
-        <span
-          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-            hasJobs
-              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-              : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
-          }`}
-        >
-          {country.totalJobs}
-        </span>
-        <span className="details-chevron text-zinc-400">▾</span>
+    <details className="group border-b border-zinc-100" open={defaultOpen ?? true}>
+      <summary className="flex cursor-pointer list-none items-center gap-2.5 py-4 [&::-webkit-details-marker]:hidden">
+        <CountryFlag code={country.code} location={country.location} flag={country.flag} size="md" />
+        <span className="font-medium text-zinc-900">{country.location}</span>
+        <span className="text-sm tabular-nums text-zinc-500">{country.totalJobs}</span>
+        <span className="details-chevron ml-auto text-xs text-zinc-400">▾</span>
       </summary>
 
-      <div className="space-y-2 border-t border-zinc-100 p-3 dark:border-zinc-800">
-        {country.categories.map((category) => (
+      <div className="pb-4">
+        {categoriesWithJobs.map((category) => (
           <CategoryBlock
             key={category.keyword}
             category={category}
             postedWithinLabel={postedWithinLabel}
             fallbackLocation={country.code}
-            compact
+            flat
           />
         ))}
       </div>
