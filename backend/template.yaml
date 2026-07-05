@@ -67,7 +67,7 @@ Parameters:
 
   JobKeywords:
     Type: String
-    Default: "python developer,node.js developer,fullstack developer,front-end developer,ai engineer,ai,react native"
+    Default: "python developer,node.js developer,fullstack developer,front-end developer,ai engineer,react native"
     Description: Comma-separated LinkedIn search keywords (20 newest per keyword)
 
   JobCountries:
