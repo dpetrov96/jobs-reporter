@@ -22,8 +22,8 @@ export function formatRunWhen(iso: string): string {
   });
 }
 
-export function humanizePostedWithin(label: string): string {
-  const value = label.trim();
+export function humanizePostedWithin(label?: string): string {
+  const value = (label ?? "").trim();
   if (!value) return "Recent";
 
   if (/^the last hour$/i.test(value)) return "Last hour";

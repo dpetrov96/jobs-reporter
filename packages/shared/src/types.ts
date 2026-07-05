@@ -111,16 +111,25 @@ export function normalizeRun(run: JobRunRecord): JobRunRecord {
       countryCount: run.countryCount ?? run.countries.length,
       categoryCount:
         run.categoryCount ??
-        run.countries.reduce((sum, country) => sum + country.categories.length, 0),
-      countries: sortByCountryDisplayOrder(run.countries.map((country) => enrichCountryRun(country))),
+        run.countries.reduce((sum, country) => sum + (country.categories?.length ?? 0), 0),
+      countries: sortByCountryDisplayOrder(
+        run.countries.map((country) =>
+          enrichCountryRun({
+            ...country,
+            categories: country.categories ?? [],
+          })
+        )
+      ),
     };
   }
 
   const legacyCategories = run.categories ?? [];
   const totalJobs =
-    run.totalJobs ?? legacyCategories.reduce((sum, category) => sum + category.jobs.length, 0);
+    run.totalJobs ??
+    legacyCategories.reduce((sum, category) => sum + (category.jobs?.length ?? 0), 0);
   const legacyCountry = lookupCountry(run.location);
-  const code = legacyCountry?.code ?? run.location.slice(0, 2).toUpperCase();
+  const code = legacyCountry?.code ?? run.location?.slice(0, 2).toUpperCase() ?? "XX";
+  const location = run.location ?? legacyCountry?.location ?? "Unknown";
 
   return {
     ...run,
@@ -129,9 +138,9 @@ export function normalizeRun(run: JobRunRecord): JobRunRecord {
     categoryCount: legacyCategories.length,
     countries: [
       enrichCountryRun({
-        location: run.location,
+        location,
         geoId: legacyCountry?.geoId ?? "",
-        flag: getCountryFlag(code, run.location),
+        flag: getCountryFlag(code, location),
         code,
         totalJobs,
         categories: legacyCategories,

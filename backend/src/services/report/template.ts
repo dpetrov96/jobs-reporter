@@ -199,6 +199,9 @@ const THEME_CSS = `
   body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #fff; color: #18181b; }
   .email-bg { width: 100%; padding: 16px 12px; background: #fff; }
   .email-shell { width: 100%; max-width: 640px; margin: 0 auto; }
+  .report-title-wrap { padding: 0 2px 10px; }
+  .report-title { margin: 0; font-size: 20px; font-weight: 700; color: #18181b; line-height: 1.25; }
+  .report-count { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: #52525b; }
   .summary-head { padding: 8px 12px; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 8px; font-size: 12px; line-height: 1.45; color: #52525b; }
   .summary-strong { font-weight: 600; color: #18181b; }
   .countries-section { padding: 14px 2px 8px; }
@@ -239,6 +242,8 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
   const when = meta.fetchedAt ? formatRunWhen(meta.fetchedAt) : "Recently";
   const period = humanizePostedWithin(postedWithinLabel);
 
+  const jobListingsLabel = totalJobs === 1 ? "1 job listing" : `${totalJobs} job listings`;
+
   const sections = sortedCountries
     .map((country) => buildCountrySection(country))
     .filter(Boolean)
@@ -271,6 +276,7 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Job Market Status — ${jobListingsLabel}</title>
     <style>${THEME_CSS}</style>
   </head>
   <body>
@@ -278,6 +284,12 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
       <tr>
         <td align="center">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-shell">
+            <tr>
+              <td class="report-title-wrap">
+                <h1 class="report-title">Job Market Status</h1>
+                <p class="report-count">${jobListingsLabel}</p>
+              </td>
+            </tr>
             <tr>
               <td class="summary-head">
                 <span class="summary-strong">${escapeHtml(when)}</span>

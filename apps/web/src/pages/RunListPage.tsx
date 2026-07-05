@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRuns } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
 import { RunReport } from "../components/RunReport";
@@ -19,29 +19,84 @@ function ErrorState({ message }: { message: string }) {
 export function RunListPage({ apiUrl }: { apiUrl: string }) {
   const [latestRun, setLatestRun] = useState<JobRunRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollTimerRef = useRef<number | null>(null);
+  const latestRunRef = useRef(latestRun);
 
-  const loadLatest = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  latestRunRef.current = latestRun;
 
-    try {
-      const response = await fetchRuns(apiUrl, { limit: 1 });
-      setLatestRun(response.runs[0] ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load latest run");
-      setLatestRun(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiUrl]);
+  const loadLatest = useCallback(
+    async (options?: { background?: boolean }) => {
+      if (!options?.background) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+      setError(null);
+
+      try {
+        const response = await fetchRuns(apiUrl, { limit: 1 });
+        setLatestRun(response.runs?.[0] ?? null);
+      } catch (err) {
+        if (!options?.background) {
+          setError(err instanceof Error ? err.message : "Failed to load latest run");
+          setLatestRun(null);
+        }
+      } finally {
+        if (!options?.background) {
+          setLoading(false);
+        } else {
+          setRefreshing(false);
+        }
+      }
+    },
+    [apiUrl]
+  );
 
   useEffect(() => {
     void loadLatest();
   }, [loadLatest]);
 
+  useEffect(() => {
+    return () => {
+      if (pollTimerRef.current != null) {
+        window.clearTimeout(pollTimerRef.current);
+      }
+    };
+  }, []);
+
   function handleRefreshed() {
-    window.setTimeout(() => void loadLatest(), 5000);
+    const previousFetchedAt = latestRunRef.current?.fetchedAt;
+    let attempts = 0;
+
+    const poll = async () => {
+      attempts += 1;
+
+      try {
+        const response = await fetchRuns(apiUrl, { limit: 1 });
+        const run = response.runs?.[0];
+
+        if (run && run.fetchedAt !== previousFetchedAt) {
+          setLatestRun(run);
+          setRefreshing(false);
+          return;
+        }
+      } catch {
+        // Keep polling — fetch may still be running on the backend.
+      }
+
+      if (attempts < 24) {
+        pollTimerRef.current = window.setTimeout(() => void poll(), 5000);
+        return;
+      }
+
+      setRefreshing(false);
+      void loadLatest({ background: true });
+    };
+
+    setRefreshing(true);
+    pollTimerRef.current = window.setTimeout(() => void poll(), 5000);
   }
 
   if (loading) {
@@ -65,7 +120,12 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
       {!latestRun ? (
         <div className="py-12 text-center text-sm text-zinc-400">No jobs loaded yet.</div>
       ) : (
-        <RunReport run={latestRun} apiUrl={apiUrl} onRefreshed={handleRefreshed} />
+        <>
+          {refreshing ? (
+            <p className="mb-2 text-xs text-zinc-400">Updating jobs in the background…</p>
+          ) : null}
+          <RunReport run={latestRun} apiUrl={apiUrl} onRefreshed={handleRefreshed} />
+        </>
       )}
     </main>
   );

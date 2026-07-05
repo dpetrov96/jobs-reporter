@@ -18,14 +18,16 @@ export function groupJobsByCompany(categories: JobCategoryResult[]): CompanyGrou
     { company: string; logoUrl?: string; jobs: Map<string, JobListing> }
   >();
 
-  for (const category of categories) {
-    for (const job of category.jobs) {
-      const key = job.company.trim().toLowerCase();
-      if (!key) continue;
+  for (const category of categories ?? []) {
+    for (const job of category.jobs ?? []) {
+      const companyName = job.company?.trim();
+      if (!companyName) continue;
+
+      const key = companyName.toLowerCase();
 
       let group = byCompany.get(key);
       if (!group) {
-        group = { company: job.company, logoUrl: job.companyLogoUrl, jobs: new Map() };
+        group = { company: companyName, logoUrl: job.companyLogoUrl, jobs: new Map() };
         byCompany.set(key, group);
       }
 

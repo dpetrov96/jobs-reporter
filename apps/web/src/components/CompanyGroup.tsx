@@ -8,9 +8,10 @@ import {
 import type { CompanyGroup as CompanyGroupData } from "../utils/groupByCompany";
 import { formatKeywordBadge } from "@jobs-reporter/shared";
 
-function companyInitials(company: string): string {
+function companyInitials(company?: string): string {
+  const name = (company ?? "").trim();
   return (
-    company
+    name
       .split(/\s+/)
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? "")
