@@ -155,12 +155,15 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref RunsTableName
       Events:
-        Cron:
-          Type: Schedule
+        WorkingHoursCron:
+          Type: ScheduleV2
           Properties:
-            Schedule: rate(1 hour)
-            Description: Fetch newest LinkedIn jobs across countries (last 1 hour)
-            Enabled: true
+            ScheduleExpression: cron(0 9-23 * * ? *)
+            ScheduleExpressionTimezone: Europe/Sofia
+            Description: Hourly job fetch 09:00–23:59 Sofia (rests 01:00–08:59)
+            State: ENABLED
+            FlexibleTimeWindow:
+              Mode: "OFF"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
