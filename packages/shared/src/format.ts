@@ -1,4 +1,6 @@
-export function formatRunWhen(iso: string): string {
+export function formatRunWhen(iso?: string): string {
+  if (!iso || Number.isNaN(Date.parse(iso))) return "Unknown time";
+
   const date = new Date(iso);
   const now = new Date();
   const diffMin = Math.floor((now.getTime() - date.getTime()) / 60_000);

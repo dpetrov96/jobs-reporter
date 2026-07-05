@@ -104,6 +104,23 @@ export function encodeRunId(fetchedAt: string): string {
   return encodeURIComponent(fetchedAt);
 }
 
+export const MANUAL_TRIGGER_RATE_LIMIT_SK = "__manual_trigger_rate_limit__";
+
+export function isJobRunRecord(run: unknown): run is JobRunRecord {
+  if (!run || typeof run !== "object") return false;
+
+  const record = run as Partial<JobRunRecord> & { recordType?: string };
+  if (typeof record.fetchedAt !== "string") return false;
+  if (record.fetchedAt === MANUAL_TRIGGER_RATE_LIMIT_SK) return false;
+  if (record.recordType === "manual_trigger_rate_limit") return false;
+  if (Number.isNaN(Date.parse(record.fetchedAt))) return false;
+
+  if (Array.isArray(record.countries) && record.countries.length > 0) return true;
+  if (Array.isArray(record.categories)) return true;
+
+  return false;
+}
+
 export function normalizeRun(run: JobRunRecord): JobRunRecord {
   if (run.countries?.length) {
     return {

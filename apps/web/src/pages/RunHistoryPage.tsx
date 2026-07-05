@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchRuns } from "@jobs-reporter/shared";
+import { fetchRuns, isJobRunRecord } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
 import { RunHistoryPagination } from "../components/RunHistoryPagination";
 import { RunHistoryRow } from "../components/RunHistoryRow";
@@ -35,7 +35,7 @@ export function RunHistoryPage({ apiUrl }: { apiUrl: string }) {
         limit: HISTORY_PAGE_SIZE,
         ...(cursor ? { cursor } : {}),
       });
-      setRuns(response.runs);
+      setRuns(response.runs.filter(isJobRunRecord));
       setNextCursor(response.nextCursor);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load run history");

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRuns } from "@jobs-reporter/shared";
+import { fetchRuns, isJobRunRecord } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
 import { RunNowButton } from "../components/RunNowButton";
 import { RunReport } from "../components/RunReport";
@@ -48,8 +48,9 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
       setError(null);
 
       try {
-        const response = await fetchRuns(apiUrl, { limit: 1 });
-        setLatestRun(response.runs?.[0] ?? null);
+        const response = await fetchRuns(apiUrl, { limit: 5 });
+        const run = response.runs?.find(isJobRunRecord) ?? null;
+        setLatestRun(run);
       } catch (err) {
         if (!options?.background) {
           setError(err instanceof Error ? err.message : "Failed to load latest run");
@@ -81,10 +82,12 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
       attempts += 1;
 
       try {
-        const response = await fetchRuns(apiUrl, { limit: 1 });
-        const run = response.runs?.[0];
+        const response = await fetchRuns(apiUrl, { limit: 5 });
+        const run = response.runs?.find(
+          (item) => isJobRunRecord(item) && item.fetchedAt !== previousFetchedAt
+        );
 
-        if (run && run.fetchedAt !== previousFetchedAt) {
+        if (run) {
           setLatestRun(run);
           stopScanning();
           return;

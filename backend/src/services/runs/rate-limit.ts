@@ -1,7 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 
-const RATE_LIMIT_SK = "__manual_trigger_rate_limit__";
+export const RATE_LIMIT_SK = "__manual_trigger_rate_limit__";
 
 export interface ManualTriggerStatus {
   canTrigger: boolean;

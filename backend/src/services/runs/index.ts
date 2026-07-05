@@ -2,6 +2,22 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import type { CountryRunResult } from "../linkedin/index.js";
 import type { SendEmailResult } from "../email/types.js";
+import { RATE_LIMIT_SK } from "./rate-limit.js";
+
+function isJobRunItem(item: unknown): item is JobRunRecord {
+  if (!item || typeof item !== "object") return false;
+
+  const record = item as Partial<JobRunRecord> & { recordType?: string };
+  if (typeof record.fetchedAt !== "string") return false;
+  if (record.fetchedAt === RATE_LIMIT_SK) return false;
+  if (record.recordType === "manual_trigger_rate_limit") return false;
+  if (Number.isNaN(Date.parse(record.fetchedAt))) return false;
+
+  if (Array.isArray(record.countries) && record.countries.length > 0) return true;
+  if (Array.isArray(record.categories)) return true;
+
+  return false;
+}
 
 export interface JobRunRecord {
   stage: string;
@@ -16,6 +32,8 @@ export interface JobRunRecord {
   emailSent: boolean;
   emailSkipped: boolean;
   emailReason?: string;
+  /** @deprecated Legacy single-country runs */
+  categories?: Array<{ keyword: string; jobs: unknown[] }>;
 }
 
 export interface SaveJobRunInput {
@@ -111,6 +129,7 @@ export async function listJobRuns(
   }
 
   const stage = process.env.APP_STAGE ?? "dev";
+  const fetchLimit = Math.min(Math.max(limit * 5, limit), 50);
   const response = await getDocClient().send(
     new QueryCommand({
       TableName: tableName,
@@ -118,14 +137,14 @@ export async function listJobRuns(
       ExpressionAttributeNames: { "#stage": "stage" },
       ExpressionAttributeValues: { ":stage": stage },
       ScanIndexForward: false,
-      Limit: limit,
+      Limit: fetchLimit,
       ...(cursor
         ? { ExclusiveStartKey: { stage, fetchedAt: cursor } }
         : {}),
     })
   );
 
-  const runs = (response.Items ?? []) as JobRunRecord[];
+  const runs = (response.Items ?? []).filter(isJobRunItem).slice(0, limit);
   const nextCursor =
     typeof response.LastEvaluatedKey?.fetchedAt === "string"
       ? response.LastEvaluatedKey.fetchedAt
@@ -141,6 +160,10 @@ export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null>
     return null;
   }
 
+  if (fetchedAt === RATE_LIMIT_SK) {
+    return null;
+  }
+
   const stage = process.env.APP_STAGE ?? "dev";
   const response = await getDocClient().send(
     new GetCommand({
@@ -149,5 +172,6 @@ export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null>
     })
   );
 
-  return (response.Item as JobRunRecord | undefined) ?? null;
+  const item = response.Item;
+  return isJobRunItem(item) ? item : null;
 }
