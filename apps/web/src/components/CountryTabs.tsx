@@ -13,18 +13,9 @@ export function CountryTabs({
   onChange: (code: string) => void;
 }) {
   const sorted = useMemo(() => sortByCountryDisplayOrder(countries), [countries]);
-  const withJobsCount = sorted.filter((c) => c.totalJobs > 0).length;
 
   return (
-    <div className="space-y-2.5">
-      <div className="flex items-baseline justify-between gap-3 px-0.5">
-        <p className="text-[13px] font-medium text-zinc-800">Countries</p>
-        <p className="text-xs text-zinc-400">
-          {withJobsCount}/{sorted.length} with jobs
-        </p>
-      </div>
-
-      <div className="country-tab-scroll -mx-3 px-3 sm:-mx-0 sm:px-0">
+    <div className="country-tab-scroll -mx-3 px-3 sm:-mx-0 sm:px-0">
         <div
           className="country-tab-track inline-flex min-w-max snap-x snap-mandatory gap-1 rounded-2xl bg-zinc-100/90 p-1 ring-1 ring-zinc-200/70"
           role="tablist"
@@ -79,7 +70,6 @@ export function CountryTabs({
             );
           })}
         </div>
-      </div>
     </div>
   );
 }

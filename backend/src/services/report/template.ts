@@ -204,9 +204,6 @@ const THEME_CSS = `
   .report-count { margin: 4px 0 0; font-size: 14px; font-weight: 600; color: #52525b; }
   .summary-head { padding: 8px 12px; background: #fafafa; border: 1px solid #e4e4e7; border-radius: 8px; font-size: 12px; line-height: 1.45; color: #52525b; }
   .summary-strong { font-weight: 600; color: #18181b; }
-  .countries-section { padding: 14px 2px 8px; }
-  .countries-title { font-size: 13px; font-weight: 500; color: #27272a; }
-  .countries-meta { font-size: 12px; color: #a1a1aa; white-space: nowrap; }
   .country-section { padding: 0 0 18px 0; }
   .country-pill { margin-bottom: 0; }
   .country-pill-inner { padding: 10px 14px; background: #fff; border: 1px solid rgba(228,228,231,0.8); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
@@ -255,21 +252,6 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
     </tr>
   `;
 
-  const countriesLabel = sections
-    ? `
-    <tr>
-      <td class="countries-section">
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr>
-            <td class="countries-title">Countries</td>
-            <td align="right" class="countries-meta">${countriesWithJobs}/${sortedCountries.length} with jobs</td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  `
-    : "";
-
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -298,7 +280,6 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
                 · <span class="summary-strong">${countriesWithJobs}</span>/${sortedCountries.length} countries
               </td>
             </tr>
-            ${countriesLabel}
             ${body}
           </table>
         </td>
