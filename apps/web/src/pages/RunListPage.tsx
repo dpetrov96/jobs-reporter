@@ -1,13 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { encodeRunId, fetchRuns, formatRunDate, normalizeRun } from "@jobs-reporter/shared";
+import { fetchRuns } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
-import { CountryFlag } from "../components/CountryFlag";
-import { RunHistoryPagination } from "../components/RunHistoryPagination";
-import { RunNowButton } from "../components/RunNowButton";
 import { RunReport } from "../components/RunReport";
-
-const HISTORY_PAGE_SIZE = 5;
 
 function LoadingState({ label }: { label: string }) {
   return (
@@ -22,77 +16,23 @@ function ErrorState({ message }: { message: string }) {
   return <div className="py-4 text-sm text-red-600">{message}</div>;
 }
 
-function RunHistoryRow({ run }: { run: JobRunRecord }) {
-  const normalized = normalizeRun(run);
-  const countriesWithJobs = normalized.countries.filter((c) => c.totalJobs > 0);
-  const activeCount = countriesWithJobs.length;
-
-  return (
-    <Link
-      to={`/runs/${encodeRunId(run.fetchedAt)}`}
-      className="group block border-b border-zinc-100 py-4"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-medium text-zinc-900 group-hover:text-emerald-700">
-            {formatRunDate(run.fetchedAt)}
-          </div>
-          <div className="mt-0.5 text-xs text-zinc-400">
-            {run.postedWithinLabel} · {normalized.countryCount} scanned · {activeCount} with jobs
-          </div>
-        </div>
-        <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900">
-          {run.totalJobs} jobs
-        </span>
-      </div>
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {normalized.countries.map((country) => (
-          <span
-            key={country.code}
-            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs ${
-              country.totalJobs > 0
-                ? "bg-zinc-100 text-zinc-700"
-                : "bg-zinc-50 text-zinc-400"
-            }`}
-          >
-            <CountryFlag code={country.code} location={country.location} flag={country.flag} size="sm" />
-            <span className="font-medium tabular-nums">{country.totalJobs}</span>
-          </span>
-        ))}
-      </div>
-    </Link>
-  );
-}
-
 export function RunListPage({ apiUrl }: { apiUrl: string }) {
   const [latestRun, setLatestRun] = useState<JobRunRecord | null>(null);
-  const [historyRuns, setHistoryRuns] = useState<JobRunRecord[]>([]);
-  const [historyPage, setHistoryPage] = useState(0);
-  const [historyCursors, setHistoryCursors] = useState<string[]>([]);
-  const [historyNextCursor, setHistoryNextCursor] = useState<string | undefined>();
-  const [loadingLatest, setLoadingLatest] = useState(true);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadLatest = useCallback(async () => {
-    setLoadingLatest(true);
+    setLoading(true);
     setError(null);
 
     try {
       const response = await fetchRuns(apiUrl, { limit: 1 });
-      const latest = response.runs[0] ?? null;
-      setLatestRun(latest);
-      setHistoryPage(0);
-      setHistoryCursors(latest ? [latest.fetchedAt] : []);
-      setHistoryRuns([]);
-      setHistoryNextCursor(undefined);
+      setLatestRun(response.runs[0] ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load latest run");
       setLatestRun(null);
-      setHistoryCursors([]);
     } finally {
-      setLoadingLatest(false);
+      setLoading(false);
     }
   }, [apiUrl]);
 
@@ -100,65 +40,13 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
     void loadLatest();
   }, [loadLatest]);
 
-  useEffect(() => {
-    const cursor = historyCursors[historyPage];
-    if (!cursor) {
-      setHistoryRuns([]);
-      setHistoryNextCursor(undefined);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function loadHistory() {
-      setLoadingHistory(true);
-      setError(null);
-
-      try {
-        const response = await fetchRuns(apiUrl, {
-          limit: HISTORY_PAGE_SIZE,
-          cursor,
-        });
-        if (cancelled) return;
-
-        setHistoryRuns(response.runs);
-        setHistoryNextCursor(response.nextCursor);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load run history");
-          setHistoryRuns([]);
-          setHistoryNextCursor(undefined);
-        }
-      } finally {
-        if (!cancelled) setLoadingHistory(false);
-      }
-    }
-
-    void loadHistory();
-    return () => {
-      cancelled = true;
-    };
-  }, [apiUrl, historyCursors, historyPage]);
-
-  function goToNextHistoryPage() {
-    if (!historyNextCursor) return;
-
-    setHistoryCursors((current) => {
-      const next = [...current];
-      next[historyPage + 1] = historyNextCursor;
-      return next;
-    });
-    setHistoryPage((current) => current + 1);
+  function handleRefreshed() {
+    window.setTimeout(() => void loadLatest(), 5000);
   }
 
-  function goToPreviousHistoryPage() {
-    setHistoryPage((current) => Math.max(0, current - 1));
-  }
-
-  if (loadingLatest) {
+  if (loading) {
     return (
       <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-        <RunNowButton apiUrl={apiUrl} onTriggered={() => void loadLatest()} />
         <LoadingState label="Loading…" />
       </main>
     );
@@ -167,7 +55,6 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
   if (error && !latestRun) {
     return (
       <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-        <RunNowButton apiUrl={apiUrl} onTriggered={() => void loadLatest()} />
         <ErrorState message={error} />
       </main>
     );
@@ -175,48 +62,10 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
 
   return (
     <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-      <RunNowButton
-        apiUrl={apiUrl}
-        onTriggered={() => {
-          window.setTimeout(() => void loadLatest(), 5000);
-        }}
-      />
-
       {!latestRun ? (
-        <div className="py-12 text-center text-sm text-zinc-400">No runs stored yet.</div>
+        <div className="py-12 text-center text-sm text-zinc-400">No jobs loaded yet.</div>
       ) : (
-        <RunReport run={latestRun} />
-      )}
-
-      {latestRun && (
-        <section className="mt-10">
-          <h2 className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Previous runs
-          </h2>
-
-          {error && latestRun ? <ErrorState message={error} /> : null}
-
-          {loadingHistory ? (
-            <LoadingState label="Loading…" />
-          ) : historyRuns.length === 0 ? (
-            <div className="py-8 text-sm text-zinc-400">No previous runs yet.</div>
-          ) : (
-            <>
-              <div>
-                {historyRuns.map((run) => (
-                  <RunHistoryRow key={run.fetchedAt} run={run} />
-                ))}
-              </div>
-
-              <RunHistoryPagination
-                page={historyPage}
-                hasNext={Boolean(historyNextCursor)}
-                onPrevious={goToPreviousHistoryPage}
-                onNext={goToNextHistoryPage}
-              />
-            </>
-          )}
-        </section>
+        <RunReport run={latestRun} apiUrl={apiUrl} onRefreshed={handleRefreshed} />
       )}
     </main>
   );

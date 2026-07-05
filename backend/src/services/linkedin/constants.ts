@@ -1,10 +1,11 @@
 export const DEFAULT_JOB_KEYWORDS = [
-  "node.js",
-  "python",
+  "python developer",
+  "node.js developer",
+  "fullstack developer",
+  "front-end developer",
   "ai engineer",
-  "fullstack",
+  "ai",
   "react native",
-  "front-end",
 ] as const;
 
 export const JOBS_PER_CATEGORY = 20;

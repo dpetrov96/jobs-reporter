@@ -1,19 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import type { JobRunRecord } from "@jobs-reporter/shared";
-import {
-  countActiveCountries,
-  formatRunDate,
-  normalizeRun,
-} from "@jobs-reporter/shared";
+import { normalizeRun } from "@jobs-reporter/shared";
 import { CountryPanel } from "./CountryPanel";
 import { CountryTabs } from "./CountryTabs";
+import { RunSummaryHeader } from "./RunSummaryHeader";
 
 function defaultCountryCode(countries: ReturnType<typeof normalizeRun>["countries"]): string {
   const withJobs = countries.find((c) => c.totalJobs > 0);
   return withJobs?.code ?? countries[0]?.code ?? "";
 }
 
-export function RunReport({ run }: { run: JobRunRecord }) {
+export function RunReport({
+  run,
+  apiUrl,
+  onRefreshed,
+}: {
+  run: JobRunRecord;
+  apiUrl?: string;
+  onRefreshed?: () => void;
+}) {
   const normalized = normalizeRun(run);
   const countries = normalized.countries;
   const [activeCode, setActiveCode] = useState(() => defaultCountryCode(countries));
@@ -27,37 +32,16 @@ export function RunReport({ run }: { run: JobRunRecord }) {
     [countries, activeCode],
   );
 
-  const activeCount = countActiveCountries(run);
-
   return (
-    <div>
-      <header className="border-b border-zinc-200 pb-4">
-        <h1 className="text-lg font-semibold text-zinc-900 sm:text-xl">
-          {formatRunDate(run.fetchedAt)}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          {normalized.postedWithinLabel}
-          <span className="mx-2 text-zinc-300" aria-hidden>
-            ·
-          </span>
-          <span className="tabular-nums">{run.totalJobs} jobs</span>
-          <span className="mx-2 text-zinc-300" aria-hidden>
-            ·
-          </span>
-          <span className="tabular-nums">{activeCount} active</span>
-          <span className="mx-2 text-zinc-300" aria-hidden>
-            ·
-          </span>
-          <span className="tabular-nums">{normalized.countryCount} scanned</span>
-        </p>
-      </header>
+    <div className="space-y-3">
+      <RunSummaryHeader run={run} apiUrl={apiUrl} onRefreshed={onRefreshed} />
 
-      <div className="sticky top-0 z-10 -mx-3 border-b border-zinc-200 bg-white px-3 py-2 sm:-mx-0 sm:px-0 sm:py-3">
+      <div className="sticky top-0 z-10 -mx-3 border-b border-zinc-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-0 sm:px-0 sm:py-4">
         <CountryTabs countries={countries} activeCode={activeCode} onChange={setActiveCode} />
       </div>
 
       {activeCountry ? (
-        <div role="tabpanel" className="pt-1">
+        <div role="tabpanel">
           <CountryPanel
             key={activeCountry.code}
             country={activeCountry}

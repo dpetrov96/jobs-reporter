@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import type { CountryRunResult } from "@jobs-reporter/shared";
-import { CategoryBlock } from "./CategoryBlock";
+import { CompanyGroup } from "./CompanyGroup";
+import { groupJobsByCompany } from "../utils/groupByCompany";
 
 export function CountryPanel({
   country,
@@ -8,6 +10,11 @@ export function CountryPanel({
   country: CountryRunResult;
   postedWithinLabel: string;
 }) {
+  const companyGroups = useMemo(
+    () => groupJobsByCompany(country.categories),
+    [country.categories],
+  );
+
   if (country.totalJobs === 0) {
     return (
       <p className="py-10 text-center text-sm text-zinc-500">
@@ -18,13 +25,11 @@ export function CountryPanel({
 
   return (
     <div className="divide-y divide-zinc-200">
-      {country.categories.map((category, index) => (
-        <CategoryBlock
-          key={category.keyword}
-          category={category}
-          postedWithinLabel={postedWithinLabel}
+      {companyGroups.map((group) => (
+        <CompanyGroup
+          key={group.company.toLowerCase()}
+          group={group}
           fallbackLocation={country.code}
-          themeIndex={index}
         />
       ))}
     </div>

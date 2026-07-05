@@ -23,4 +23,21 @@
   details[open] .details-chevron {
     @apply rotate-180;
   }
+
+  .country-tab-scroll {
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 12px,
+      #000 calc(100% - 12px),
+      transparent
+    );
+  }
+
+  .country-tab-scroll::-webkit-scrollbar {
+    display: none;
+  }
 }

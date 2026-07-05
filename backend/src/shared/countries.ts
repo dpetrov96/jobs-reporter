@@ -38,8 +38,23 @@ export const JOB_COUNTRY_REGISTRY: JobCountry[] = [
   { code: "UA", location: "Ukraine", geoId: "102264497", flag: "🇺🇦" },
 ];
 
-/** Active fetch targets: NL, DE, FR, BE, UK, PL, BG */
-export const DEFAULT_JOB_COUNTRIES = "NL,DE,FR,BE,GB,PL,BG";
+/** Active fetch targets — display order: BG, FR, DE, NL, UK, BE, PL */
+export const COUNTRY_DISPLAY_ORDER = ["BG", "FR", "DE", "NL", "GB", "BE", "PL"] as const;
+
+export const DEFAULT_JOB_COUNTRIES = "BG,FR,DE,NL,GB,BE,PL";
+
+const displayOrderIndex = new Map<string, number>(
+  COUNTRY_DISPLAY_ORDER.map((code, index) => [code, index]),
+);
+
+export function sortByCountryDisplayOrder<T extends { code: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const ai = displayOrderIndex.get(a.code) ?? 999;
+    const bi = displayOrderIndex.get(b.code) ?? 999;
+    if (ai !== bi) return ai - bi;
+    return a.code.localeCompare(b.code);
+  });
+}
 
 const registryByKey = new Map(
   JOB_COUNTRY_REGISTRY.flatMap((country) => [

@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import type { CountryRunResult } from "@jobs-reporter/shared";
+import { sortByCountryDisplayOrder } from "@jobs-reporter/shared";
 import { CountryFlag } from "./CountryFlag";
 
 export function CountryTabs({
@@ -10,52 +12,73 @@ export function CountryTabs({
   activeCode: string;
   onChange: (code: string) => void;
 }) {
-  return (
-    <div className="-mx-3 overflow-x-auto px-3 [scrollbar-width:none] sm:-mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
-      <div
-        className="flex min-w-max snap-x snap-mandatory gap-1 border-b border-transparent sm:min-w-0 sm:flex-wrap sm:gap-0"
-        role="tablist"
-        aria-label="Countries"
-      >
-        {countries.map((country) => {
-          const active = country.code === activeCode;
-          const hasJobs = country.totalJobs > 0;
+  const sorted = useMemo(() => sortByCountryDisplayOrder(countries), [countries]);
+  const withJobsCount = sorted.filter((c) => c.totalJobs > 0).length;
 
-          return (
-            <button
-              key={country.code}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => onChange(country.code)}
-              className={`inline-flex min-h-11 snap-start items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition sm:min-h-0 sm:gap-2 sm:px-4 sm:py-3 ${
-                active
-                  ? "border-[#0a66c2] font-semibold text-[#0a66c2]"
-                  : hasJobs
-                    ? "border-transparent font-medium text-zinc-600 hover:text-zinc-900"
-                    : "border-transparent font-medium text-zinc-400 hover:text-zinc-600"
-              }`}
-            >
-              <CountryFlag
-                code={country.code}
-                location={country.location}
-                flag={country.flag}
-                size="sm"
-              />
-              <span className="max-w-[7rem] truncate sm:max-w-none">
-                <span className="sm:hidden">{country.code}</span>
-                <span className="hidden sm:inline">{country.location}</span>
-              </span>
-              <span
-                className={`text-xs tabular-nums sm:text-sm ${
-                  active ? "text-[#0a66c2]" : hasJobs ? "text-zinc-500" : "text-zinc-400"
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-baseline justify-between gap-3 px-0.5">
+        <p className="text-[13px] font-medium text-zinc-800">Countries</p>
+        <p className="text-xs text-zinc-400">
+          {withJobsCount}/{sorted.length} with jobs
+        </p>
+      </div>
+
+      <div className="country-tab-scroll -mx-3 px-3 sm:-mx-0 sm:px-0">
+        <div
+          className="country-tab-track inline-flex min-w-max snap-x snap-mandatory gap-1 rounded-2xl bg-zinc-100/90 p-1 ring-1 ring-zinc-200/70"
+          role="tablist"
+          aria-label="Countries"
+        >
+          {sorted.map((country) => {
+            const active = country.code === activeCode;
+            const hasJobs = country.totalJobs > 0;
+
+            return (
+              <button
+                key={country.code}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onChange(country.code)}
+                className={`country-tab snap-start inline-flex shrink-0 items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-all duration-200 active:scale-[0.97] sm:px-3.5 sm:py-2 ${
+                  active
+                    ? "country-tab-active bg-white text-zinc-900 shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] ring-1 ring-zinc-200/80"
+                    : hasJobs
+                      ? "text-zinc-600 hover:bg-white/60 hover:text-zinc-900"
+                      : "text-zinc-400 hover:bg-white/40 hover:text-zinc-500"
                 }`}
               >
-                ({country.totalJobs})
-              </span>
-            </button>
-          );
-        })}
+                <CountryFlag
+                  code={country.code}
+                  location={country.location}
+                  flag={country.flag}
+                  size="sm"
+                  className={active ? "" : hasJobs ? "" : "opacity-60"}
+                />
+                <span className="whitespace-nowrap font-medium">
+                  <span className="sm:hidden">{country.code === "GB" ? "UK" : country.code}</span>
+                  <span className="hidden sm:inline">
+                    {country.code === "GB" ? "United Kingdom" : country.location}
+                  </span>
+                </span>
+                <span
+                  className={`min-w-[1.25rem] rounded-md px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums leading-none ${
+                    active
+                      ? hasJobs
+                        ? "bg-zinc-900 text-white"
+                        : "bg-zinc-200 text-zinc-500"
+                      : hasJobs
+                        ? "bg-zinc-200/80 text-zinc-700"
+                        : "bg-zinc-200/50 text-zinc-400"
+                  }`}
+                >
+                  {country.totalJobs}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

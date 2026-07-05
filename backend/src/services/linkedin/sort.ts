@@ -1,54 +1,7 @@
 import type { JobListing } from "./types.js";
+import { jobPostedAtMs } from "./jobTime.js";
 
-function relativeLabelToMs(label: string): number | undefined {
-  const text = label.toLowerCase();
-
-  const minuteMatch = text.match(/(\d+)\s*minute/);
-  if (minuteMatch) return Date.now() - Number(minuteMatch[1]) * 60_000;
-
-  const hourMatch = text.match(/(\d+)\s*hour/);
-  if (hourMatch) return Date.now() - Number(hourMatch[1]) * 3_600_000;
-
-  const dayMatch = text.match(/(\d+)\s*day/);
-  if (dayMatch) return Date.now() - Number(dayMatch[1]) * 86_400_000;
-
-  const weekMatch = text.match(/(\d+)\s*week/);
-  if (weekMatch) return Date.now() - Number(weekMatch[1]) * 7 * 86_400_000;
-
-  const monthMatch = text.match(/(\d+)\s*month/);
-  if (monthMatch) return Date.now() - Number(monthMatch[1]) * 30 * 86_400_000;
-
-  if (text.includes("just now")) return Date.now();
-
-  return undefined;
-}
-
-function hasTimePrecision(value: string): boolean {
-  return value.includes("T") || /\d{1,2}:\d{2}/.test(value);
-}
-
-export function jobPostedAtMs(job: JobListing): number {
-  if (job.dateLabel) {
-    const relative = relativeLabelToMs(job.dateLabel);
-    if (relative !== undefined) return relative;
-  }
-
-  if (job.datePosted) {
-    const ms = Date.parse(job.datePosted);
-    if (!Number.isNaN(ms)) {
-      // LinkedIn guest API often returns date-only datetime (e.g. "2026-07-04").
-      // Parsing that as midnight wrongly drops jobs posted minutes ago.
-      if (!hasTimePrecision(job.datePosted)) {
-        return Date.now();
-      }
-
-      return ms;
-    }
-  }
-
-  const numericId = Number(job.linkedInJobId);
-  return Number.isFinite(numericId) ? numericId : Date.now();
-}
+export { jobPostedAtMs } from "./jobTime.js";
 
 export function sortJobsByNewest(jobs: JobListing[]): JobListing[] {
   return [...jobs].sort((a, b) => jobPostedAtMs(b) - jobPostedAtMs(a));

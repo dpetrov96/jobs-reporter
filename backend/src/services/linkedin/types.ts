@@ -8,6 +8,8 @@ export interface JobListing {
   workMode?: "remote" | "hybrid" | "onsite";
   datePosted?: string;
   dateLabel?: string;
+  applicantCount?: number;
+  applicantsLabel?: string;
   keyword?: string;
   companyLogoUrl?: string;
 }

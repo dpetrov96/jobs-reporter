@@ -1,4 +1,4 @@
-import { enrichCountryRun, getCountryFlag, lookupCountry } from "./countries.js";
+import { enrichCountryRun, getCountryFlag, lookupCountry, sortByCountryDisplayOrder } from "./countries.js";
 
 export interface JobListing {
   id: string;
@@ -10,6 +10,8 @@ export interface JobListing {
   workMode?: "remote" | "hybrid" | "onsite";
   datePosted?: string;
   dateLabel?: string;
+  applicantCount?: number;
+  applicantsLabel?: string;
   keyword?: string;
   companyLogoUrl?: string;
 }
@@ -110,7 +112,7 @@ export function normalizeRun(run: JobRunRecord): JobRunRecord {
       categoryCount:
         run.categoryCount ??
         run.countries.reduce((sum, country) => sum + country.categories.length, 0),
-      countries: run.countries.map((country) => enrichCountryRun(country)),
+      countries: sortByCountryDisplayOrder(run.countries.map((country) => enrichCountryRun(country))),
     };
   }
 

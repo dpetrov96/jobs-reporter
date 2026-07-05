@@ -13,9 +13,11 @@ function formatCooldown(seconds: number): string {
 export function RunNowButton({
   apiUrl,
   onTriggered,
+  compact = false,
 }: {
   apiUrl: string;
   onTriggered?: () => void;
+  compact?: boolean;
 }) {
   const [canTrigger, setCanTrigger] = useState(false);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState(0);
@@ -31,7 +33,7 @@ export function RunNowButton({
       setRetryAfterSeconds(status.retryAfterSeconds);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to check rate limit");
+      setError(err instanceof Error ? err.message : "Could not check refresh status");
     } finally {
       setLoading(false);
     }
@@ -64,7 +66,7 @@ export function RunNowButton({
 
     try {
       const result = await triggerFetch(apiUrl);
-      setMessage(result.message ?? "Fetch started");
+      setMessage("Updating…");
       setCanTrigger(false);
       setRetryAfterSeconds(result.retryAfterSeconds ?? 1800);
       onTriggered?.();
@@ -80,7 +82,7 @@ export function RunNowButton({
         setCanTrigger(false);
       }
 
-      setError(err instanceof Error ? err.message : "Failed to trigger fetch");
+      setError(err instanceof Error ? err.message : "Refresh failed");
     } finally {
       setSubmitting(false);
     }
@@ -88,18 +90,44 @@ export function RunNowButton({
 
   const disabled = loading || submitting || !canTrigger;
 
-  return (
-    <div className="flex flex-col gap-2.5 border-b border-zinc-100 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="min-w-0 text-xs text-zinc-400">
-        {message ?? error ?? "Manual refresh · 30 min cooldown"}
+  const label = submitting
+    ? "Updating…"
+    : canTrigger
+      ? "Refresh"
+      : `In ${formatCooldown(retryAfterSeconds)}`;
+
+  if (compact) {
+    return (
+      <div className="flex shrink-0 flex-col items-end gap-0.5">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => void handleTrigger()}
+          className="rounded-md bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
+        >
+          {label}
+        </button>
+        {(message || error) && (
+          <span className={`max-w-[8rem] text-right text-[10px] leading-tight ${error ? "text-red-500" : "text-zinc-400"}`}>
+            {error ?? message}
+          </span>
+        )}
       </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 flex flex-col gap-2 rounded-2xl bg-zinc-50 p-3.5 ring-1 ring-zinc-200/70 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <p className="text-xs text-zinc-500">
+        {error ?? message ?? "Check for new jobs manually (once every 30 minutes)"}
+      </p>
       <button
         type="button"
         disabled={disabled}
         onClick={() => void handleTrigger()}
-        className="min-h-11 w-full shrink-0 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition active:scale-[0.98] hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-0 sm:w-auto sm:rounded-lg sm:px-3.5 sm:py-1.5 sm:text-xs"
+        className="min-h-10 w-full shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300 sm:w-auto"
       >
-        {submitting ? "Starting…" : canTrigger ? "Run now" : `Wait ${formatCooldown(retryAfterSeconds)}`}
+        {label}
       </button>
     </div>
   );

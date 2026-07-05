@@ -1,4 +1,5 @@
 import { getCountryFlag } from "../../shared/countries.js";
+import { formatApplicants, isJobFreshWithinMinutes } from "../linkedin/jobTime.js";
 import type { JobCategoryResult, JobListing } from "../linkedin/types.js";
 import type { CountryRunResult, JobReportMeta } from "./types.js";
 
@@ -17,17 +18,37 @@ function workModeLabel(workMode?: JobListing["workMode"]): string {
   return "On-site";
 }
 
-function buildJobRow(job: JobListing, fallbackLocation: string): string {
-  const location = job.location ?? fallbackLocation;
+function formatJobDateHtml(job: JobListing): string {
   const date = job.dateLabel ?? job.datePosted ?? "New";
+  const escaped = escapeHtml(date);
+  return isJobFreshWithinMinutes(job, 15)
+    ? `<span class="job-date-fresh">${escaped}</span>`
+    : escaped;
+}
+
+function buildJobMetaHtml(job: JobListing, fallbackLocation: string): string {
+  const location = job.location ?? fallbackLocation;
   const mode = workModeLabel(job.workMode);
-  const meta = [job.company, location, mode, date].filter(Boolean).join(" · ");
+  const applicants = formatApplicants(job);
+  const parts = [
+    escapeHtml(job.company),
+    escapeHtml(location),
+    mode ? escapeHtml(mode) : "",
+    applicants ? escapeHtml(applicants) : "",
+    formatJobDateHtml(job),
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function buildJobRow(job: JobListing, fallbackLocation: string): string {
+  const meta = buildJobMetaHtml(job, fallbackLocation);
 
   return `
     <tr class="job-row">
       <td class="job-cell">
         <a href="${escapeHtml(job.url)}" class="job-title">${escapeHtml(job.title)}</a>
-        <div class="job-meta">${escapeHtml(meta)}</div>
+        <div class="job-meta">${meta}</div>
       </td>
     </tr>
   `.trim();
@@ -116,6 +137,7 @@ const THEME_CSS = `
   .job-cell { padding: 8px 12px; border-top: 1px solid #27272a; vertical-align: top; }
   .job-title { display: block; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; line-height: 1.35; }
   .job-meta { margin-top: 2px; font-size: 10px; color: #a1a1aa; line-height: 1.35; }
+  .job-date-fresh { color: #4ade80; font-weight: 600; }
   .empty-cell { padding: 14px; font-size: 12px; font-style: italic; color: #a1a1aa; text-align: center; }
   @media (prefers-color-scheme: light) {
     .email-bg { background: #f4f4f5 !important; }
@@ -126,6 +148,7 @@ const THEME_CSS = `
     .category-block { background: #fff !important; border-color: #e4e4e7 !important; }
     .job-cell { border-top-color: #f4f4f5 !important; }
     .job-title { color: #09090b !important; }
+    .job-date-fresh { color: #16a34a !important; }
     .country-head { border-left-color: #16a34a !important; }
   }
 `.trim();

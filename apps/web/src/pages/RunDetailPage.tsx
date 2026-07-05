@@ -67,10 +67,10 @@ export function RunDetailPage({ apiUrl }: { apiUrl: string }) {
   return (
     <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
       <Link
-        to="/"
+        to="/history"
         className="mb-4 inline-block text-xs text-zinc-400 transition hover:text-zinc-600"
       >
-        ← Back
+        ← Previous runs
       </Link>
       <RunReport run={run} />
     </main>

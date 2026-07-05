@@ -1,6 +1,73 @@
 import * as cheerio from "cheerio";
 import type { JobListing } from "./types.js";
 
+function parseApplicantsFromText(text: string): Pick<JobListing, "applicantCount" | "applicantsLabel"> {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return {};
+
+  if (/be an early applicant/i.test(normalized) && !/\d+\s*applicants?/i.test(normalized)) {
+    return { applicantsLabel: "Early applicant" };
+  }
+
+  const match = normalized.match(/(?:be among the first (\d+)|over (\d+)|(\d+))\s*applicants?/i);
+  if (!match) return {};
+
+  const count = Number(match[1] ?? match[2] ?? match[3]);
+  if (!Number.isFinite(count)) return {};
+
+  const labelMatch = normalized.match(/(?:be among the first \d+|over \d+|\d+)\s*applicants?/i);
+  return {
+    applicantCount: count,
+    applicantsLabel: labelMatch?.[0] ?? `${count} applicants`,
+  };
+}
+
+function parseApplicantsFromCard(
+  $card: ReturnType<cheerio.CheerioAPI>,
+  $: cheerio.CheerioAPI
+): Pick<JobListing, "applicantCount" | "applicantsLabel"> {
+  const footerTexts = $card
+    .find(".job-search-card__footer-item, .base-search-card__metadata")
+    .toArray()
+    .map((element) => $(element).text().replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  for (const text of footerTexts) {
+    const parsed = parseApplicantsFromText(text);
+    if (parsed.applicantCount != null || parsed.applicantsLabel) {
+      return parsed;
+    }
+  }
+
+  return parseApplicantsFromText($card.text().replace(/\s+/g, " "));
+}
+
+export const LINKEDIN_JOB_DETAIL_BASE =
+  "https://www.linkedin.com/jobs-guest/jobs/api/jobPosting";
+
+export function buildLinkedInJobDetailUrl(jobId: string): string {
+  const numericId = linkedInNumericIdFromJobId(jobId) ?? jobId.replace(/^linkedin-/, "");
+  return `${LINKEDIN_JOB_DETAIL_BASE}/${numericId}`;
+}
+
+export function parseLinkedInJobDetailPage(html: string): Pick<
+  JobListing,
+  "dateLabel" | "applicantCount" | "applicantsLabel"
+> {
+  const $ = cheerio.load(html);
+
+  const dateLabel =
+    $(".posted-time-ago__text").first().text().replace(/\s+/g, " ").trim() || undefined;
+
+  const applicantText =
+    $(".num-applicants__caption").first().text().replace(/\s+/g, " ").trim() || "";
+
+  return {
+    dateLabel,
+    ...parseApplicantsFromText(applicantText),
+  };
+}
+
 export const LINKEDIN_SEARCH_BASE =
   "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search";
 
@@ -101,6 +168,7 @@ export function parseLinkedInListingPage(html: string): JobListing[] {
       const datePosted = $card.find("time").first().attr("datetime")?.trim();
       const dateLabel = $card.find("time").first().text().replace(/\s+/g, " ").trim();
       const { location, workMode } = parseLocationAndWorkMode(locationText);
+      const { applicantCount, applicantsLabel } = parseApplicantsFromCard($card, $);
 
       const companyLogoUrl =
         $card.find("img.artdeco-entity-image").first().attr("data-delayed-url")?.trim() ||
@@ -117,6 +185,8 @@ export function parseLinkedInListingPage(html: string): JobListing[] {
         workMode,
         datePosted,
         dateLabel: dateLabel || undefined,
+        applicantCount,
+        applicantsLabel,
         companyLogoUrl: companyLogoUrl || undefined,
       });
     }

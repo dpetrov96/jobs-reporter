@@ -12,11 +12,13 @@ import {
 } from "./countries.js";
 import {
   buildLinkedInSearchUrl,
+  buildLinkedInJobDetailUrl,
   diagnoseLinkedInSearchHtml,
   LINKEDIN_BULGARIA_GEO_ID,
   LINKEDIN_LOCATION,
   LINKEDIN_PER_PAGE,
   parseLinkedInListingPage,
+  parseLinkedInJobDetailPage,
 } from "./parser.js";
 import { filterJobsWithinPostedWindow, sortJobsByNewest, postedWithinToSeconds } from "./sort.js";
 import type { JobCategoryResult, JobListing } from "./types.js";
@@ -60,6 +62,42 @@ export function parseJobKeywords(raw?: string): string[] {
 export function resolvePostedWithin(raw?: string): string {
   const value = raw?.trim() || process.env.JOB_POSTED_WITHIN?.trim() || DEFAULT_JOB_POSTED_WITHIN;
   return postedWithinToSeconds(value) ? value : DEFAULT_JOB_POSTED_WITHIN;
+}
+
+const DETAIL_ENRICH_CONCURRENCY = 4;
+
+async function enrichJobsFromDetail(jobs: JobListing[]): Promise<JobListing[]> {
+  const enriched = [...jobs];
+
+  for (let index = 0; index < enriched.length; index += DETAIL_ENRICH_CONCURRENCY) {
+    const batch = enriched.slice(index, index + DETAIL_ENRICH_CONCURRENCY);
+
+    await Promise.all(
+      batch.map(async (job, batchIndex) => {
+        const targetIndex = index + batchIndex;
+
+        try {
+          const html = await fetchLinkedInHtml(buildLinkedInJobDetailUrl(job.id));
+          const detail = parseLinkedInJobDetailPage(html);
+
+          enriched[targetIndex] = {
+            ...job,
+            ...(detail.dateLabel ? { dateLabel: detail.dateLabel } : {}),
+            ...(detail.applicantCount != null ? { applicantCount: detail.applicantCount } : {}),
+            ...(detail.applicantsLabel ? { applicantsLabel: detail.applicantsLabel } : {}),
+          };
+        } catch (error) {
+          console.warn(`[linkedin] detail enrich failed for ${job.id}:`, error);
+        }
+      })
+    );
+
+    if (index + DETAIL_ENRICH_CONCURRENCY < enriched.length) {
+      await sleep(REQUEST_DELAY_MS);
+    }
+  }
+
+  return enriched;
 }
 
 async function fetchKeywordJobs(options: {
@@ -120,7 +158,8 @@ async function fetchKeywordJobs(options: {
   }
 
   const filtered = filterJobsWithinPostedWindow([...byId.values()], windowSeconds);
-  return sortJobsByNewest(filtered).slice(0, limit);
+  const sorted = sortJobsByNewest(filtered).slice(0, limit);
+  return enrichJobsFromDetail(sorted);
 }
 
 export async function fetchJobsByCategories(
