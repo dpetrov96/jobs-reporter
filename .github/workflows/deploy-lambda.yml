@@ -44,12 +44,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.AWS_REGION || 'eu-central-1' }}
 
-      - name: Deploy Lambda code
+      - name: Deploy Lambda (code + infrastructure)
         working-directory: backend
         env:
           AWS_REGION: ${{ vars.AWS_REGION || 'eu-central-1' }}
-          STACK_PREFIX: ${{ vars.STACK_PREFIX || 'lambda-linkedin-finder' }}
-        run: bash scripts/deploy-code.sh
+        run: |
+          cp ../packages/shared/src/countries.ts src/shared/countries.ts
+          sam build
+          sam deploy --no-confirm-changeset
 
       - name: Notify deploy success
         if: success()
