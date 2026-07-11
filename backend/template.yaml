@@ -105,6 +105,17 @@ Parameters:
     Default: 5
     Description: Block manual trigger if any run finished within this many minutes
 
+  OpenAIApiKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: OpenAI API key for AI learning recommendations in market analyses
+
+  OpenAIModel:
+    Type: String
+    Default: gpt-4o-mini
+    Description: OpenAI model for analysis recommendations
+
 Conditions:
   UseSes: !Equals [!Ref EmailProvider, ses]
 
@@ -266,6 +277,117 @@ Resources:
         EntryPoints:
           - src/handlers/trigger-fetch.ts
 
+  RunAnalysisFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Background worker for market analyses
+      Handler: run-analysis.handler
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          OPENAI_MODEL: !Ref OpenAIModel
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RunsTableName
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/run-analysis.ts
+
+  ListAnalysesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: List market analyses from DynamoDB
+      Handler: list-analyses.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RunsTableName
+      Events:
+        ListAnalysesApi:
+          Type: HttpApi
+          Properties:
+            Path: /analyses
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/list-analyses.ts
+
+  GetAnalysisFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Get a single market analysis from DynamoDB
+      Handler: get-analysis.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RunsTableName
+      Events:
+        GetAnalysisApi:
+          Type: HttpApi
+          Properties:
+            Path: /analyses/{analysisId}
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-analysis.ts
+
+  StartAnalysisFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Start a market analysis for a date period
+      Handler: start-analysis.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          RUN_ANALYSIS_FUNCTION_ARN: !GetAtt RunAnalysisFunction.Arn
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RunsTableName
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt RunAnalysisFunction.Arn
+      Events:
+        StartAnalysisApi:
+          Type: HttpApi
+          Properties:
+            Path: /analyses
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/start-analysis.ts
+
 Outputs:
   ApiEndpoint:
     Description: HTTP API base URL
@@ -288,3 +410,9 @@ Outputs:
   RunsUrl:
     Description: List runs API endpoint
     Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/runs"
+  AnalysesUrl:
+    Description: Market analyses API endpoint
+    Value: !Sub "https://${ServerlessHttpApi}.execute-api.${AWS::Region}.amazonaws.com/analyses"
+  RunAnalysisFunctionArn:
+    Description: Run analysis Lambda ARN
+    Value: !GetAtt RunAnalysisFunction.Arn

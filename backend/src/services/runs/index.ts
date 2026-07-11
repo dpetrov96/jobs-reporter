@@ -153,6 +153,53 @@ export async function listJobRuns(
   return { runs, nextCursor };
 }
 
+export async function listJobRunsInPeriod(
+  periodStart: string,
+  periodEnd: string
+): Promise<JobRunRecord[]> {
+  const tableName = getTableName();
+
+  if (!tableName) {
+    return [];
+  }
+
+  const stage = process.env.APP_STAGE ?? "dev";
+  const runs: JobRunRecord[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const response = await getDocClient().send(
+      new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: "#stage = :stage AND #fetchedAt BETWEEN :start AND :end",
+        ExpressionAttributeNames: {
+          "#stage": "stage",
+          "#fetchedAt": "fetchedAt",
+        },
+        ExpressionAttributeValues: {
+          ":stage": stage,
+          ":start": periodStart,
+          ":end": periodEnd,
+        },
+        ScanIndexForward: false,
+        Limit: 50,
+        ...(cursor
+          ? { ExclusiveStartKey: { stage, fetchedAt: cursor } }
+          : {}),
+      })
+    );
+
+    runs.push(...(response.Items ?? []).filter(isJobRunItem));
+
+    cursor =
+      typeof response.LastEvaluatedKey?.fetchedAt === "string"
+        ? response.LastEvaluatedKey.fetchedAt
+        : undefined;
+  } while (cursor);
+
+  return runs;
+}
+
 export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null> {
   const tableName = getTableName();
 

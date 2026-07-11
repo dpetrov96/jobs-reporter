@@ -1,6 +1,7 @@
 import type { JobListing } from "@jobs-reporter/shared";
 import {
   formatApplicants,
+  isHighApplicantJob,
   isJobFreshWithinMinutes,
   jobDateDisplay,
   workModeLabel,
@@ -53,6 +54,7 @@ function CompactJobRow({
   const isFresh = isJobFreshWithinMinutes(job, 15);
   const applicants = formatApplicants(job);
   const where = job.location ?? fallbackLocation;
+  const highApplicants = isHighApplicantJob(job);
 
   return (
     <li>
@@ -71,7 +73,15 @@ function CompactJobRow({
                 <span className="mx-1" aria-hidden>
                   ·
                 </span>
-                {applicants}
+                <span
+                  className={
+                    highApplicants
+                      ? "rounded bg-red-100 px-1.5 py-0.5 font-semibold text-red-700 ring-1 ring-inset ring-red-200"
+                      : undefined
+                  }
+                >
+                  {applicants}
+                </span>
               </>
             ) : null}
             <span className="mx-1" aria-hidden>

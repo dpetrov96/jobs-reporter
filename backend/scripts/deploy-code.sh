@@ -20,13 +20,17 @@ cp "$ROOT/../packages/shared/src/countries.ts" "$ROOT/src/shared/countries.ts"
 export PATH="$ROOT/../node_modules/.bin:$ROOT/node_modules/.bin:$PATH"
 sam build --build-dir "$BUILD_DIR"
 
-FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction TriggerFetchFunction)
+FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction TriggerFetchFunction RunAnalysisFunction ListAnalysesFunction GetAnalysisFunction StartAnalysisFunction)
 BUNDLES=(
   "HealthFunction:health.js"
   "FetchJobsFunction:fetch-jobs.js"
   "ListRunsFunction:list-runs.js"
   "GetRunFunction:get-run.js"
   "TriggerFetchFunction:trigger-fetch.js"
+  "RunAnalysisFunction:run-analysis.js"
+  "ListAnalysesFunction:list-analyses.js"
+  "GetAnalysisFunction:get-analysis.js"
+  "StartAnalysisFunction:start-analysis.js"
 )
 
 for fn in "${FUNCTIONS[@]}"; do

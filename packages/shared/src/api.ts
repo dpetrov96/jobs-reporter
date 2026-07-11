@@ -1,4 +1,10 @@
 import type {
+  GetAnalysisResponse,
+  ListAnalysesResponse,
+  StartAnalysisRequest,
+  StartAnalysisResponse,
+} from "./analysis.js";
+import type {
   FetchRunsOptions,
   GetRunResponse,
   ListRunsResponse,
@@ -65,4 +71,50 @@ export async function triggerFetch(baseUrl: string): Promise<TriggerFetchRespons
   return data;
 }
 
+export async function fetchAnalyses(
+  baseUrl: string,
+  options: { limit?: number; cursor?: string } = {}
+): Promise<ListAnalysesResponse> {
+  const { limit = 20, cursor } = options;
+  const url = new URL("/analyses", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  url.searchParams.set("limit", String(limit));
+  if (cursor) url.searchParams.set("cursor", cursor);
+  const response = await fetch(url.toString());
+  return parseJson<ListAnalysesResponse>(response);
+}
+
+export async function fetchAnalysis(
+  baseUrl: string,
+  analysisId: string
+): Promise<GetAnalysisResponse> {
+  const encoded = encodeURIComponent(analysisId);
+  const url = new URL(`/analyses/${encoded}`, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  const response = await fetch(url.toString());
+  return parseJson<GetAnalysisResponse>(response);
+}
+
+export async function startAnalysis(
+  baseUrl: string,
+  body: StartAnalysisRequest
+): Promise<StartAnalysisResponse> {
+  const url = new URL("/analyses", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await response.json()) as StartAnalysisResponse & { error?: string };
+
+  if (!response.ok) {
+    const message = data.error ?? `Request failed (${response.status})`;
+    throw Object.assign(new Error(message), {
+      status: response.status,
+      analysis: data.analysis,
+    });
+  }
+
+  return data;
+}
+
+export * from "./analysis.js";
 export * from "./types.js";

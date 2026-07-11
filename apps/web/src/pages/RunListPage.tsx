@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRuns, isJobRunRecord } from "@jobs-reporter/shared";
 import type { JobRunRecord } from "@jobs-reporter/shared";
+import { useLiveRunWatch } from "../hooks/useLiveRunWatch";
+import { LiveStatusBar } from "../components/LiveStatusBar";
 import { RunNowButton } from "../components/RunNowButton";
 import { RunReport } from "../components/RunReport";
 import { ScanStatusBanner } from "../components/ScanStatusBanner";
@@ -117,6 +119,18 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
     startPolling();
   }, [startPolling]);
 
+  const handleLiveNewRun = useCallback((run: JobRunRecord) => {
+    setLatestRun(run);
+    setError(null);
+  }, []);
+
+  const live = useLiveRunWatch({
+    apiUrl,
+    knownFetchedAt: latestRun?.fetchedAt,
+    enabled: !isScanning && !loading,
+    onNewRun: handleLiveNewRun,
+  });
+
   if (loading) {
     return (
       <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
@@ -152,9 +166,17 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
           {isScanning ? (
             <ScanStatusBanner message="Scanning LinkedIn across countries — this may take a few minutes." />
           ) : (
-            <p className="py-8 text-center text-sm text-zinc-400">
-              No jobs loaded yet. Hit Refresh to run a scan.
-            </p>
+            <>
+              <LiveStatusBar
+                countdownLabel={live.countdownLabel}
+                nearCronSlot={live.nearCronSlot}
+                newRunFlash={live.newRunFlash}
+                onDismissFlash={live.dismissFlash}
+              />
+              <p className="py-8 text-center text-sm text-zinc-400">
+                No jobs loaded yet. Waiting for the next scan or hit Refresh.
+              </p>
+            </>
           )}
         </div>
       </main>
@@ -170,6 +192,10 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
         onScanStart={handleScanStart}
         onScanTriggered={handleScanTriggered}
         onScanEnd={stopScanning}
+        liveCountdownLabel={live.countdownLabel}
+        liveNearCronSlot={live.nearCronSlot}
+        liveNewRunFlash={live.newRunFlash}
+        onDismissLiveFlash={live.dismissFlash}
       />
     </main>
   );

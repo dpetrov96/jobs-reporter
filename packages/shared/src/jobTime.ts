@@ -78,3 +78,30 @@ export function formatApplicants(job: JobListing): string | undefined {
   if (job.applicantCount != null) return `${job.applicantCount} applicants`;
   return undefined;
 }
+
+export const HIGH_APPLICANT_THRESHOLD = 100;
+
+export function isHighApplicantJob(job: JobListing): boolean {
+  if (job.applicantCount != null && job.applicantCount > HIGH_APPLICANT_THRESHOLD) {
+    return true;
+  }
+
+  if (job.applicantCount === HIGH_APPLICANT_THRESHOLD) {
+    return /over\s+100\b/i.test(job.applicantsLabel ?? "");
+  }
+
+  const overMatch = job.applicantsLabel?.match(/over\s+(\d+)/i);
+  if (overMatch) {
+    const count = Number(overMatch[1]);
+    return Number.isFinite(count) && count >= HIGH_APPLICANT_THRESHOLD;
+  }
+
+  return false;
+}
+
+export function highApplicantChipLabel(job: JobListing): string {
+  if (job.applicantCount != null && job.applicantCount > HIGH_APPLICANT_THRESHOLD) {
+    return `${job.applicantCount}+`;
+  }
+  return "100+";
+}

@@ -3,6 +3,7 @@ import type { JobRunRecord } from "@jobs-reporter/shared";
 import { normalizeRun } from "@jobs-reporter/shared";
 import { CountryPanel } from "./CountryPanel";
 import { CountryTabs } from "./CountryTabs";
+import { LiveStatusBar } from "./LiveStatusBar";
 import { RunSummaryHeader } from "./RunSummaryHeader";
 import { ScanStatusBanner } from "./ScanStatusBanner";
 
@@ -18,6 +19,10 @@ export function RunReport({
   onScanStart,
   onScanTriggered,
   onScanEnd,
+  liveCountdownLabel,
+  liveNearCronSlot,
+  liveNewRunFlash,
+  onDismissLiveFlash,
 }: {
   run: JobRunRecord;
   apiUrl?: string;
@@ -25,6 +30,10 @@ export function RunReport({
   onScanStart?: () => void;
   onScanTriggered?: () => void;
   onScanEnd?: () => void;
+  liveCountdownLabel?: string;
+  liveNearCronSlot?: boolean;
+  liveNewRunFlash?: { totalJobs: number } | null;
+  onDismissLiveFlash?: () => void;
 }) {
   const normalized = normalizeRun(run);
   const countries = normalized.countries;
@@ -52,6 +61,14 @@ export function RunReport({
 
       {isScanning ? (
         <ScanStatusBanner message="Checking job market — scanning for new listings…" />
+      ) : liveCountdownLabel ? (
+        <LiveStatusBar
+          countdownLabel={liveCountdownLabel}
+          nearCronSlot={liveNearCronSlot ?? false}
+          lastFetchedAt={run.fetchedAt}
+          newRunFlash={liveNewRunFlash ?? null}
+          onDismissFlash={onDismissLiveFlash ?? (() => undefined)}
+        />
       ) : null}
 
       <div className="sticky top-0 z-10 -mx-3 border-b border-zinc-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-0 sm:px-0 sm:py-4">
