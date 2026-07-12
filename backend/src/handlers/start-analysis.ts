@@ -1,13 +1,16 @@
-import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import { analysisLog, getAiConfig } from "../services/analyses/logger.js";
 import {
   createPendingAnalysis,
   getAnalysisForPeriod,
+  reconcileAnalysisStatus,
+  resetFailedAnalysis,
+  updateAnalysis,
 } from "../services/analyses/index.js";
+import { triggerAnalysisRun } from "../services/analyses/trigger.js";
+import { loadOpenAiKey } from "../services/analyses/openai-key.js";
 import { normalizePeriodInput } from "../services/analyses/types.js";
 import { jsonResponse, optionsResponse } from "./http-response.js";
-
-const lambda = new LambdaClient({});
 
 function getRunAnalysisFunctionArn(): string {
   return process.env.RUN_ANALYSIS_FUNCTION_ARN?.trim() || "";
@@ -16,6 +19,8 @@ function getRunAnalysisFunctionArn(): string {
 interface StartAnalysisBody {
   periodStart?: string;
   periodEnd?: string;
+  periodLabel?: string;
+  reanalyze?: boolean;
 }
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
@@ -37,7 +42,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     if (!rawStart || !rawEnd) {
       return jsonResponse(400, {
         ok: false,
-        error: "periodStart and periodEnd are required (YYYY-MM-DD)",
+        error: "periodStart and periodEnd are required",
       });
     }
 
@@ -61,11 +66,26 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
     const existing = await getAnalysisForPeriod(periodStart, periodEnd);
     if (existing) {
-      return jsonResponse(409, {
-        ok: false,
-        error: "Analysis for this period already exists",
-        analysis: existing,
-      });
+      const reconciled = await reconcileAnalysisStatus(existing);
+
+      if (reconciled.status === "completed" && !body.reanalyze) {
+        return jsonResponse(409, {
+          ok: false,
+          error: "Analysis for this period already exists",
+          analysis: reconciled,
+        });
+      }
+
+      if (
+        (reconciled.status === "pending" || reconciled.status === "running") &&
+        !body.reanalyze
+      ) {
+        return jsonResponse(409, {
+          ok: false,
+          error: "Analysis for this period is already in progress",
+          analysis: reconciled,
+        });
+      }
     }
 
     const functionArn = getRunAnalysisFunctionArn();
@@ -76,21 +96,39 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       });
     }
 
-    const analysis = await createPendingAnalysis({ periodStart, periodEnd });
+    await loadOpenAiKey();
+    const aiConfig = getAiConfig();
 
-    await lambda.send(
-      new InvokeCommand({
-        FunctionName: functionArn,
-        InvocationType: "Event",
-        Payload: Buffer.from(
-          JSON.stringify({
-            analysisId: analysis.fetchedAt,
+    analysisLog({
+      phase: "start",
+      message: "Analysis trigger accepted",
+      periodStart,
+      periodEnd,
+      aiKeyConfigured: aiConfig.keyConfigured,
+      aiEnabled: aiConfig.enabled,
+      aiModel: aiConfig.model,
+    });
+
+    const analysis =
+      existing && (existing.status === "failed" || body.reanalyze)
+        ? await resetFailedAnalysis({
             periodStart,
             periodEnd,
+            periodLabel: body.periodLabel?.trim() || existing.periodLabel,
           })
-        ),
-      })
-    );
+        : existing
+          ? existing
+          : await createPendingAnalysis({
+          periodStart,
+          periodEnd,
+          periodLabel: body.periodLabel?.trim() || undefined,
+        });
+
+    await updateAnalysis(analysis.fetchedAt, {
+      progressMessage: "Изчаква старт на worker…",
+    });
+
+    await triggerAnalysisRun(analysis.fetchedAt, periodStart, periodEnd);
 
     return jsonResponse(202, {
       ok: true,

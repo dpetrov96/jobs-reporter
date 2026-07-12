@@ -3,6 +3,7 @@ import type {
   ListAnalysesResponse,
   StartAnalysisRequest,
   StartAnalysisResponse,
+  EnrichCompanyDomainsResponse,
 } from "./analysis.js";
 import type {
   FetchRunsOptions,
@@ -93,6 +94,38 @@ export async function fetchAnalysis(
   return parseJson<GetAnalysisResponse>(response);
 }
 
+export async function cancelAnalysis(
+  baseUrl: string,
+  analysisId: string
+): Promise<GetAnalysisResponse> {
+  const encoded = encodeURIComponent(analysisId);
+  const url = new URL(`/analyses/${encoded}`, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  url.searchParams.set("cancel", "true");
+  const response = await fetch(url.toString());
+  return parseJson<GetAnalysisResponse>(response);
+}
+
+export async function reanalyzeAnalysis(
+  baseUrl: string,
+  analysisId: string
+): Promise<StartAnalysisResponse> {
+  const encoded = encodeURIComponent(analysisId);
+  const url = new URL(`/analyses/${encoded}`, baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  url.searchParams.set("reanalyze", "true");
+  const response = await fetch(url.toString());
+  const data = (await response.json()) as StartAnalysisResponse & { error?: string };
+
+  if (!response.ok) {
+    const message = data.error ?? `Request failed (${response.status})`;
+    throw Object.assign(new Error(message), {
+      status: response.status,
+      analysis: data.analysis,
+    });
+  }
+
+  return data;
+}
+
 export async function startAnalysis(
   baseUrl: string,
   body: StartAnalysisRequest
@@ -104,6 +137,61 @@ export async function startAnalysis(
     body: JSON.stringify(body),
   });
   const data = (await response.json()) as StartAnalysisResponse & { error?: string };
+
+  if (!response.ok) {
+    const message = data.error ?? `Request failed (${response.status})`;
+    throw Object.assign(new Error(message), {
+      status: response.status,
+      analysis: data.analysis,
+    });
+  }
+
+  return data;
+}
+
+export async function enrichCompanyDomains(
+  baseUrl: string,
+  analysisId: string,
+  options: { countryCode: string }
+): Promise<EnrichCompanyDomainsResponse> {
+  const encoded = encodeURIComponent(analysisId);
+  const url = new URL(
+    `/analyses/${encoded}/enrich-domains`,
+    baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`
+  );
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ countryCode: options.countryCode.toUpperCase() }),
+  });
+  const data = (await response.json()) as EnrichCompanyDomainsResponse & { error?: string };
+
+  if (!response.ok) {
+    const message = data.error ?? `Request failed (${response.status})`;
+    throw Object.assign(new Error(message), {
+      status: response.status,
+      analysis: data.analysis,
+    });
+  }
+
+  return data;
+}
+
+export async function cancelDomainEnrichment(
+  baseUrl: string,
+  analysisId: string
+): Promise<EnrichCompanyDomainsResponse> {
+  const encoded = encodeURIComponent(analysisId);
+  const url = new URL(
+    `/analyses/${encoded}/enrich-domains`,
+    baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`
+  );
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "cancel" }),
+  });
+  const data = (await response.json()) as EnrichCompanyDomainsResponse & { error?: string };
 
   if (!response.ok) {
     const message = data.error ?? `Request failed (${response.status})`;

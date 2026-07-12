@@ -157,47 +157,64 @@ export async function listJobRunsInPeriod(
   periodStart: string,
   periodEnd: string
 ): Promise<JobRunRecord[]> {
-  const tableName = getTableName();
-
-  if (!tableName) {
-    return [];
-  }
-
-  const stage = process.env.APP_STAGE ?? "dev";
-  const runs: JobRunRecord[] = [];
+  const all: JobRunRecord[] = [];
   let cursor: string | undefined;
 
   do {
-    const response = await getDocClient().send(
-      new QueryCommand({
-        TableName: tableName,
-        KeyConditionExpression: "#stage = :stage AND #fetchedAt BETWEEN :start AND :end",
-        ExpressionAttributeNames: {
-          "#stage": "stage",
-          "#fetchedAt": "fetchedAt",
-        },
-        ExpressionAttributeValues: {
-          ":stage": stage,
-          ":start": periodStart,
-          ":end": periodEnd,
-        },
-        ScanIndexForward: false,
-        Limit: 50,
-        ...(cursor
-          ? { ExclusiveStartKey: { stage, fetchedAt: cursor } }
-          : {}),
-      })
-    );
-
-    runs.push(...(response.Items ?? []).filter(isJobRunItem));
-
-    cursor =
-      typeof response.LastEvaluatedKey?.fetchedAt === "string"
-        ? response.LastEvaluatedKey.fetchedAt
-        : undefined;
+    const page = await listJobRunsInPeriodPage(periodStart, periodEnd, 10, cursor);
+    all.push(...page.runs);
+    cursor = page.nextCursor;
   } while (cursor);
 
-  return runs;
+  return all;
+}
+
+export interface ListJobRunsInPeriodPageResult {
+  runs: JobRunRecord[];
+  nextCursor?: string;
+}
+
+export async function listJobRunsInPeriodPage(
+  periodStart: string,
+  periodEnd: string,
+  limit = 10,
+  cursor?: string
+): Promise<ListJobRunsInPeriodPageResult> {
+  const tableName = getTableName();
+
+  if (!tableName) {
+    return { runs: [] };
+  }
+
+  const stage = process.env.APP_STAGE ?? "dev";
+  const response = await getDocClient().send(
+    new QueryCommand({
+      TableName: tableName,
+      KeyConditionExpression: "#stage = :stage AND #fetchedAt BETWEEN :start AND :end",
+      ExpressionAttributeNames: {
+        "#stage": "stage",
+        "#fetchedAt": "fetchedAt",
+      },
+      ExpressionAttributeValues: {
+        ":stage": stage,
+        ":start": periodStart,
+        ":end": periodEnd,
+      },
+      ScanIndexForward: false,
+      Limit: Math.min(Math.max(limit, 1), 25),
+      ...(cursor
+        ? { ExclusiveStartKey: { stage, fetchedAt: cursor } }
+        : {}),
+    })
+  );
+
+  const runs = (response.Items ?? []).filter(isJobRunItem);
+  const nextCursor =
+    typeof response.LastEvaluatedKey?.fetchedAt === "string"
+      ? response.LastEvaluatedKey.fetchedAt
+      : undefined;
+
+  return { runs, nextCursor };
 }
 
 export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null> {

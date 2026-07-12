@@ -109,12 +109,22 @@ Parameters:
     Type: String
     Default: ""
     NoEcho: true
-    Description: OpenAI API key for AI learning recommendations in market analyses
+    Description: Deprecated — use scripts/set-openai-key.sh (stores in SSM). Kept only for sam deploy compatibility.
+
+  OpenAIApiKeyParam:
+    Type: String
+    Default: /lambda-linkedin-finder/openai-api-key
+    Description: SSM Parameter Store path for OpenAI API key (SecureString)
 
   OpenAIModel:
     Type: String
     Default: gpt-4o-mini
     Description: OpenAI model for analysis recommendations
+
+  WebUrl:
+    Type: String
+    Default: http://63.181.35.55
+    Description: Public web app URL for OG share links (no trailing slash)
 
 Conditions:
   UseSes: !Equals [!Ref EmailProvider, ses]
@@ -283,16 +293,21 @@ Resources:
       CodeUri: .
       Description: Background worker for market analyses
       Handler: run-analysis.handler
-      Timeout: 300
-      MemorySize: 512
+      Timeout: 600
+      MemorySize: 1024
       Environment:
         Variables:
           RUNS_TABLE_NAME: !Ref RunsTableName
-          OPENAI_API_KEY: !Ref OpenAIApiKey
+          OPENAI_API_KEY_PARAM: !Ref OpenAIApiKeyParam
           OPENAI_MODEL: !Ref OpenAIModel
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RunsTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenAIApiKeyParam}"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -338,9 +353,14 @@ Resources:
       Environment:
         Variables:
           RUNS_TABLE_NAME: !Ref RunsTableName
+          RUN_ANALYSIS_FUNCTION_ARN: !GetAtt RunAnalysisFunction.Arn
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref RunsTableName
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt RunAnalysisFunction.Arn
       Events:
         GetAnalysisApi:
           Type: HttpApi
@@ -355,6 +375,34 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/handlers/get-analysis.ts
+
+  GetAnalysisShareFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Open Graph HTML preview for shared analysis links
+      Handler: get-analysis-share.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          WEB_URL: !Ref WebUrl
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RunsTableName
+      Events:
+        GetAnalysisShareApi:
+          Type: HttpApi
+          Properties:
+            Path: /share/analyses/{analysisId}
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-analysis-share.ts
 
   StartAnalysisFunction:
     Type: AWS::Serverless::Function
@@ -387,6 +435,74 @@ Resources:
         Sourcemap: true
         EntryPoints:
           - src/handlers/start-analysis.ts
+
+  EnrichCompanyDomainsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Background worker to enrich company website domains with AI
+      Handler: run-enrich-domains.handler
+      Timeout: 600
+      MemorySize: 512
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          OPENAI_API_KEY_PARAM: !Ref OpenAIApiKeyParam
+          OPENAI_MODEL: !Ref OpenAIModel
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RunsTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenAIApiKeyParam}"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/run-enrich-domains.ts
+
+  StartEnrichDomainsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Start AI domain enrichment for analysis companies
+      Handler: start-enrich-domains.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          ENRICH_DOMAINS_FUNCTION_ARN: !GetAtt EnrichCompanyDomainsFunction.Arn
+          OPENAI_API_KEY_PARAM: !Ref OpenAIApiKeyParam
+          OPENAI_MODEL: !Ref OpenAIModel
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RunsTableName
+        - Statement:
+            - Effect: Allow
+              Action: lambda:InvokeFunction
+              Resource: !GetAtt EnrichCompanyDomainsFunction.Arn
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${OpenAIApiKeyParam}"
+      Events:
+        StartEnrichDomainsApi:
+          Type: HttpApi
+          Properties:
+            Path: /analyses/{analysisId}/enrich-domains
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/start-enrich-domains.ts
 
 Outputs:
   ApiEndpoint:

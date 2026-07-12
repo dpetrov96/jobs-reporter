@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import {
   encodeAnalysisId,
   formatAnalysisPeriod,
+  formatMarketMonitoringScope,
+  getAnalysisCountryCount,
   isAnalysisInProgress,
 } from "@jobs-reporter/shared";
 import type { AnalysisRecord } from "@jobs-reporter/shared";
@@ -24,11 +26,13 @@ export function AnalysisHistoryRow({ analysis }: { analysis: AnalysisRecord }) {
             <AnalysisStatusBadge status={analysis.status} />
             {analysis.status === "completed" ? (
               <span>
-                {analysis.runCount} сканирания · {analysis.uniqueJobs} позиции ·{" "}
-                {analysis.countries.length} държави
+                {formatMarketMonitoringScope(analysis.periodStart, analysis.periodEnd)}
+                {" · "}
+                {analysis.uniqueJobs.toLocaleString()} jobs · {getAnalysisCountryCount(analysis)}{" "}
+                countries
               </span>
             ) : inProgress ? (
-              <span>Анализът продължава във фонов режим</span>
+              <span>Analysis running in the background</span>
             ) : analysis.error ? (
               <span className="text-red-600">{analysis.error}</span>
             ) : null}

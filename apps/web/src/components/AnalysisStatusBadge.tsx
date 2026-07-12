@@ -8,10 +8,10 @@ const STATUS_STYLES: Record<AnalysisStatus, string> = {
 };
 
 const STATUS_LABELS: Record<AnalysisStatus, string> = {
-  pending: "Изчаква",
-  running: "Анализира се",
-  completed: "Завършен",
-  failed: "Грешка",
+  pending: "Pending",
+  running: "Running",
+  completed: "Completed",
+  failed: "Failed",
 };
 
 export function AnalysisStatusBadge({ status }: { status: AnalysisStatus }) {

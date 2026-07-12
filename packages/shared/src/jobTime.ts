@@ -1,24 +1,24 @@
 import type { JobListing } from "./types.js";
 
-function relativeLabelToMs(label: string): number | undefined {
+function relativeLabelToMs(label: string, referenceMs = Date.now()): number | undefined {
   const text = label.toLowerCase();
 
   const minuteMatch = text.match(/(\d+)\s*minute/);
-  if (minuteMatch) return Date.now() - Number(minuteMatch[1]) * 60_000;
+  if (minuteMatch) return referenceMs - Number(minuteMatch[1]) * 60_000;
 
   const hourMatch = text.match(/(\d+)\s*hour/);
-  if (hourMatch) return Date.now() - Number(hourMatch[1]) * 3_600_000;
+  if (hourMatch) return referenceMs - Number(hourMatch[1]) * 3_600_000;
 
   const dayMatch = text.match(/(\d+)\s*day/);
-  if (dayMatch) return Date.now() - Number(dayMatch[1]) * 86_400_000;
+  if (dayMatch) return referenceMs - Number(dayMatch[1]) * 86_400_000;
 
   const weekMatch = text.match(/(\d+)\s*week/);
-  if (weekMatch) return Date.now() - Number(weekMatch[1]) * 7 * 86_400_000;
+  if (weekMatch) return referenceMs - Number(weekMatch[1]) * 7 * 86_400_000;
 
   const monthMatch = text.match(/(\d+)\s*month/);
-  if (monthMatch) return Date.now() - Number(monthMatch[1]) * 30 * 86_400_000;
+  if (monthMatch) return referenceMs - Number(monthMatch[1]) * 30 * 86_400_000;
 
-  if (text.includes("just now")) return Date.now();
+  if (text.includes("just now")) return referenceMs;
 
   return undefined;
 }
@@ -27,9 +27,9 @@ function hasTimePrecision(value: string): boolean {
   return value.includes("T") || /\d{1,2}:\d{2}/.test(value);
 }
 
-export function jobPostedAtMs(job: JobListing): number {
+export function jobPostedAtMs(job: JobListing, referenceMs = Date.now()): number {
   if (job.dateLabel) {
-    const relative = relativeLabelToMs(job.dateLabel);
+    const relative = relativeLabelToMs(job.dateLabel, referenceMs);
     if (relative !== undefined) return relative;
   }
 
@@ -37,7 +37,7 @@ export function jobPostedAtMs(job: JobListing): number {
     const ms = Date.parse(job.datePosted);
     if (!Number.isNaN(ms)) {
       if (!hasTimePrecision(job.datePosted)) {
-        return Date.now();
+        return referenceMs;
       }
 
       return ms;
@@ -45,7 +45,7 @@ export function jobPostedAtMs(job: JobListing): number {
   }
 
   const numericId = Number(job.linkedInJobId);
-  return Number.isFinite(numericId) ? numericId : Date.now();
+  return Number.isFinite(numericId) ? numericId : referenceMs;
 }
 
 export function jobDateDisplay(job: JobListing): string {

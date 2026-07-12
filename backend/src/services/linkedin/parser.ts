@@ -52,7 +52,7 @@ export function buildLinkedInJobDetailUrl(jobId: string): string {
 
 export function parseLinkedInJobDetailPage(html: string): Pick<
   JobListing,
-  "dateLabel" | "applicantCount" | "applicantsLabel"
+  "dateLabel" | "applicantCount" | "applicantsLabel" | "description"
 > {
   const $ = cheerio.load(html);
 
@@ -64,8 +64,28 @@ export function parseLinkedInJobDetailPage(html: string): Pick<
 
   return {
     dateLabel,
+    description: parseJobDescriptionFromDetailHtml(html),
     ...parseApplicantsFromText(applicantText),
   };
+}
+
+export function parseJobDescriptionFromDetailHtml(html: string): string | undefined {
+  const $ = cheerio.load(html);
+
+  const candidates = [
+    $(".description__text .show-more-less-html__markup").first(),
+    $(".description__text").first(),
+    $(".show-more-less-html__markup").first(),
+  ];
+
+  for (const element of candidates) {
+    const text = element.text().replace(/\s+/g, " ").trim();
+    if (text.length >= 80) {
+      return text;
+    }
+  }
+
+  return undefined;
 }
 
 export const LINKEDIN_SEARCH_BASE =

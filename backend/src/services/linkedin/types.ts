@@ -12,6 +12,7 @@ export interface JobListing {
   applicantsLabel?: string;
   keyword?: string;
   companyLogoUrl?: string;
+  description?: string;
 }
 
 export interface JobCategoryResult {
