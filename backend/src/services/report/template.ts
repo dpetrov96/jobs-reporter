@@ -236,10 +236,20 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
   const totalJobs = meta.countries.reduce((sum, country) => sum + country.totalJobs, 0);
   const sortedCountries = sortByCountryDisplayOrder(meta.countries);
   const countriesWithJobs = sortedCountries.filter((country) => country.totalJobs > 0).length;
-  const when = meta.fetchedAt ? formatRunWhen(meta.fetchedAt) : "Recently";
-  const period = humanizePostedWithin(postedWithinLabel);
+  const isDaily = meta.reportKind === "daily";
+  const when = isDaily
+    ? (meta.dayLabel ?? "Today")
+    : meta.fetchedAt
+      ? formatRunWhen(meta.fetchedAt)
+      : "Recently";
+  const period = isDaily
+    ? `${meta.scrapeCount ?? 0} hourly scrapes`
+    : humanizePostedWithin(postedWithinLabel);
 
   const jobListingsLabel = totalJobs === 1 ? "1 job listing" : `${totalJobs} job listings`;
+  const reportTitle = isDaily ? "Daily Job Market Summary" : "Job Market Status";
+  const regionSuffix =
+    isDaily && meta.timezoneLabel ? ` · ${escapeHtml(meta.timezoneLabel)} time` : "";
 
   const sections = sortedCountries
     .map((country) => buildCountrySection(country))
@@ -248,9 +258,23 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
 
   const body = sections || `
     <tr>
-      <td class="empty-cell">No jobs in ${escapeHtml(postedWithinLabel)} across ${meta.countries.length} countries.</td>
+      <td class="empty-cell">No jobs${isDaily ? " today" : ""} in ${escapeHtml(postedWithinLabel)} across ${meta.countries.length} countries.</td>
     </tr>
   `;
+
+  const summaryParts = isDaily
+    ? [
+        `<span class="summary-strong">${escapeHtml(when)}</span>`,
+        escapeHtml(period),
+        `<span class="summary-strong">${totalJobs}</span> unique jobs`,
+        `<span class="summary-strong">${countriesWithJobs}</span>/${sortedCountries.length} countries`,
+      ]
+    : [
+        `<span class="summary-strong">${escapeHtml(when)}</span>`,
+        escapeHtml(period),
+        `<span class="summary-strong">${totalJobs}</span> jobs`,
+        `<span class="summary-strong">${countriesWithJobs}</span>/${sortedCountries.length} countries`,
+      ];
 
   return `
 <!DOCTYPE html>
@@ -258,7 +282,7 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Job Market Status — ${jobListingsLabel}</title>
+    <title>${escapeHtml(reportTitle)} — ${jobListingsLabel}</title>
     <style>${THEME_CSS}</style>
   </head>
   <body>
@@ -268,16 +292,13 @@ export function buildJobReportHtml(meta: JobReportMeta): string {
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="email-shell">
             <tr>
               <td class="report-title-wrap">
-                <h1 class="report-title">Job Market Status</h1>
-                <p class="report-count">${jobListingsLabel}</p>
+                <h1 class="report-title">${escapeHtml(reportTitle)}</h1>
+                <p class="report-count">${escapeHtml(meta.location ?? "")}${regionSuffix} · ${jobListingsLabel}</p>
               </td>
             </tr>
             <tr>
               <td class="summary-head">
-                <span class="summary-strong">${escapeHtml(when)}</span>
-                · ${escapeHtml(period)}
-                · <span class="summary-strong">${totalJobs}</span> jobs
-                · <span class="summary-strong">${countriesWithJobs}</span>/${sortedCountries.length} countries
+                ${summaryParts.join("\n                · ")}
               </td>
             </tr>
             ${body}

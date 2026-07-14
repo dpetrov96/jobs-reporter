@@ -6,10 +6,13 @@ import {
   summarizeCountries,
 } from "../services/linkedin/index.js";
 import { formatPostedWithinLabel } from "../services/linkedin/sort.js";
+import { maybeSendDailyReport } from "../services/report/dailyReport.js";
 import { logJobReport, sendJobReportEmail } from "../services/report/index.js";
 import { saveJobRun } from "../services/runs/index.js";
+import { resolveScrapeRegion } from "../shared/scrapeRegions.js";
 
 export const handler: ScheduledHandler = async () => {
+  const region = resolveScrapeRegion();
   const countries = resolveJobCountries();
   const fetchedAt = new Date().toISOString();
   const postedWithin = resolvePostedWithin();
@@ -17,17 +20,18 @@ export const handler: ScheduledHandler = async () => {
   const location = summarizeCountries(countries);
 
   console.log(
-    `[fetch-jobs] starting multi-country search countries=${countries.length} (${location})`
+    `[fetch-jobs] region=${region.id} starting multi-country search countries=${countries.length} (${location})`
   );
 
   const countryResults = await fetchJobsForCountries(countries);
   const meta = {
-    location,
+    location: region.label,
     fetchedAt,
     postedWithin,
     postedWithinLabel,
     countries: countryResults,
     countryCount: countryResults.length,
+    scrapeRegion: region.id,
   };
   const totalJobs = countryResults.reduce((sum, country) => sum + country.totalJobs, 0);
 
@@ -55,7 +59,16 @@ export const handler: ScheduledHandler = async () => {
     );
   }
 
+  try {
+    await maybeSendDailyReport(region.id, fetchedAt);
+  } catch (error) {
+    console.error(
+      "[fetch-jobs] daily report failed:",
+      error instanceof Error ? error.message : error
+    );
+  }
+
   console.log(
-    `[fetch-jobs] done — ${countryResults.length} countries, ${totalJobs} job(s)`
+    `[fetch-jobs] done — region=${region.id} ${countryResults.length} countries, ${totalJobs} job(s)`
   );
 };

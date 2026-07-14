@@ -1,4 +1,7 @@
 import type { JobCategoryResult } from "../linkedin/types.js";
+import type { ScrapeRegionId } from "../../shared/scrapeRegions.js";
+
+export type ReportKind = "hourly" | "daily";
 
 export interface CountryRunResult {
   location: string;
@@ -16,4 +19,10 @@ export interface JobReportMeta {
   postedWithinLabel?: string;
   countries: CountryRunResult[];
   countryCount?: number;
+  reportKind?: ReportKind;
+  scrapeRegion?: ScrapeRegionId;
+  dayKey?: string;
+  dayLabel?: string;
+  scrapeCount?: number;
+  timezoneLabel?: string;
 }

@@ -25,6 +25,8 @@
     "@aws-sdk/lib-dynamodb": "^3.840.0",
     "cheerio": "^1.0.0",
     "esbuild": "0.25.12",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
     "resend": "^4.6.0"
   },
   "devDependencies": {

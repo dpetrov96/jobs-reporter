@@ -25,15 +25,17 @@ cd "$ROOT"
 cp "$ROOT/../packages/shared/src/countries.ts" "$ROOT/src/shared/countries.ts"
 cp "$ROOT/../packages/shared/src/keywords.ts" "$ROOT/src/shared/keywords.ts"
 cp "$ROOT/../packages/shared/src/schedule.ts" "$ROOT/src/shared/schedule.ts"
+cp "$ROOT/../packages/shared/src/scrapeRegions.ts" "$ROOT/src/shared/scrapeRegions.ts"
 cp "$ROOT/../packages/shared/src/analysisMeta.ts" "$ROOT/src/shared/analysisMeta.ts"
 # Fallback: CI installs workspace deps at repo root before this script runs.
 export PATH="$ROOT/../node_modules/.bin:$ROOT/node_modules/.bin:$PATH"
 sam build --build-dir "$BUILD_DIR"
 
-FUNCTIONS=(HealthFunction FetchJobsFunction ListRunsFunction GetRunFunction TriggerFetchFunction RunAnalysisFunction ListAnalysesFunction GetAnalysisFunction GetAnalysisShareFunction StartAnalysisFunction EnrichCompanyDomainsFunction StartEnrichDomainsFunction)
+FUNCTIONS=(HealthFunction FetchJobsFunction FetchJobsUsFunction ListRunsFunction GetRunFunction TriggerFetchFunction RunAnalysisFunction ListAnalysesFunction GetAnalysisFunction GetAnalysisShareFunction StartAnalysisFunction EnrichCompanyDomainsFunction StartEnrichDomainsFunction)
 BUNDLES=(
   "HealthFunction:health.js"
   "FetchJobsFunction:fetch-jobs.js"
+  "FetchJobsUsFunction:fetch-jobs.js"
   "ListRunsFunction:list-runs.js"
   "GetRunFunction:get-run.js"
   "TriggerFetchFunction:trigger-fetch.js"

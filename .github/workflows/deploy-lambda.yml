@@ -51,6 +51,7 @@ jobs:
         run: |
           cp ../packages/shared/src/countries.ts src/shared/countries.ts
           cp ../packages/shared/src/jobCounts.ts src/shared/jobCounts.ts
+          cp ../packages/shared/src/scrapeRegions.ts src/shared/scrapeRegions.ts
           sam build
           sam deploy --no-confirm-changeset
 

@@ -36,6 +36,7 @@ export const JOB_COUNTRY_REGISTRY: JobCountry[] = [
   { code: "EE", location: "Estonia", geoId: "102158813", flag: "🇪🇪" },
   { code: "TR", location: "Turkey", geoId: "102105699", flag: "🇹🇷" },
   { code: "UA", location: "Ukraine", geoId: "102264497", flag: "🇺🇦" },
+  { code: "US", location: "United States", geoId: "103644278", flag: "🇺🇸" },
 ];
 
 /** Active fetch targets — display order: BG, FR, DE, NL, UK, BE, PL */

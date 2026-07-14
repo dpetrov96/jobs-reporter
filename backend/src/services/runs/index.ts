@@ -2,6 +2,12 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
 import type { CountryRunResult } from "../linkedin/index.js";
 import type { SendEmailResult } from "../email/types.js";
+import type { ScrapeRegionId } from "../../shared/scrapeRegions.js";
+import {
+  getDayUtcBounds,
+  getScrapeRegion,
+  regionDateKey,
+} from "../../shared/scrapeRegions.js";
 import { RATE_LIMIT_SK } from "./rate-limit.js";
 
 function isJobRunItem(item: unknown): item is JobRunRecord {
@@ -32,6 +38,7 @@ export interface JobRunRecord {
   emailSent: boolean;
   emailSkipped: boolean;
   emailReason?: string;
+  scrapeRegion?: ScrapeRegionId;
   /** @deprecated Legacy single-country runs */
   categories?: Array<{ keyword: string; jobs: unknown[] }>;
 }
@@ -43,6 +50,7 @@ export interface SaveJobRunInput {
   postedWithinLabel: string;
   countries: CountryRunResult[];
   countryCount?: number;
+  scrapeRegion?: ScrapeRegionId;
 }
 
 export type SaveJobRunResult =
@@ -97,6 +105,7 @@ export async function saveJobRun(
     countryCount: input.countryCount ?? input.countries.length,
     categoryCount: countCategories(input.countries),
     countries: input.countries,
+    scrapeRegion: input.scrapeRegion ?? "europe",
     emailSent: emailResult?.sent === true,
     emailSkipped: emailResult?.sent === false,
     emailReason:
@@ -215,6 +224,23 @@ export async function listJobRunsInPeriodPage(
       : undefined;
 
   return { runs, nextCursor };
+}
+
+export async function listJobRunsForRegionDay(
+  scrapeRegion: ScrapeRegionId,
+  dayKey: string
+): Promise<JobRunRecord[]> {
+  const region = getScrapeRegion(scrapeRegion);
+  const { start, end } = getDayUtcBounds(dayKey, region.timezone);
+  const all = await listJobRunsInPeriod(start, end);
+
+  return all
+    .filter(
+      (run) =>
+        (run.scrapeRegion ?? "europe") === scrapeRegion &&
+        regionDateKey(run.fetchedAt, region.timezone) === dayKey
+    )
+    .sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
 }
 
 export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null> {

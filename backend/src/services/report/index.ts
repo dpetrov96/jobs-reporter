@@ -71,3 +71,33 @@ export async function sendJobReportEmail(meta: JobReportMeta): Promise<SendEmail
     html: buildJobReportHtml(meta),
   });
 }
+
+export async function sendDailyReportEmail(meta: JobReportMeta): Promise<SendEmailResult> {
+  const reportTo = process.env.REPORT_EMAIL_TO;
+
+  if (!reportTo) {
+    return {
+      sent: false,
+      skipped: true,
+      reason: "REPORT_EMAIL_TO missing — set it in env or template parameters",
+    };
+  }
+
+  if (!isEmailConfigured()) {
+    return {
+      sent: false,
+      skipped: true,
+      reason: "Email not configured — set RESEND_API_KEY or SES",
+    };
+  }
+
+  const totalJobs = meta.countries.reduce((sum, country) => sum + country.totalJobs, 0);
+  const regionLabel = meta.location ?? "All regions";
+  const subject = `Daily Summary — ${regionLabel} — ${totalJobs} jobs`;
+
+  return sendEmail({
+    to: reportTo,
+    subject,
+    html: buildJobReportHtml({ ...meta, reportKind: "daily" }),
+  });
+}

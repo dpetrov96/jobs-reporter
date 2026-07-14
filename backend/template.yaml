@@ -75,6 +75,26 @@ Parameters:
     Default: "BG,FR,DE,NL,GB,BE,PL"
     Description: Comma-separated country codes (BG,FR,DE,NL,GB,BE,PL) or "all"
 
+  JobCountriesUs:
+    Type: String
+    Default: "US"
+    Description: Country codes for the US scraper (default United States)
+
+  ScrapeRegion:
+    Type: String
+    Default: europe
+    AllowedValues:
+      - europe
+      - usa
+    Description: Scrape region for FetchJobsFunction (europe = Sofia schedule)
+
+  ScrapeRegionUs:
+    Type: String
+    Default: usa
+    AllowedValues:
+      - usa
+    Description: Scrape region for FetchJobsUsFunction
+
   JobLocation:
     Type: String
     Default: Bulgaria
@@ -165,13 +185,14 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       CodeUri: .
-      Description: Fetch LinkedIn jobs across configured countries
+      Description: Fetch LinkedIn jobs across configured countries (Europe)
       Handler: fetch-jobs.handler
       Timeout: 600
       MemorySize: 512
       Environment:
         Variables:
           RUNS_TABLE_NAME: !Ref RunsTableName
+          SCRAPE_REGION: !Ref ScrapeRegion
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RunsTableName
@@ -181,7 +202,42 @@ Resources:
           Properties:
             ScheduleExpression: cron(0 9-23 * * ? *)
             ScheduleExpressionTimezone: Europe/Sofia
-            Description: Hourly job fetch 09:00–23:59 Sofia (rests 01:00–08:59)
+            Description: Hourly job fetch 09:00–23:59 Sofia (rests 00:00–08:59)
+            State: ENABLED
+            FlexibleTimeWindow:
+              Mode: "OFF"
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/fetch-jobs.ts
+
+  FetchJobsUsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Fetch LinkedIn jobs in the United States (LA timezone)
+      Handler: fetch-jobs.handler
+      Timeout: 600
+      MemorySize: 512
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+          SCRAPE_REGION: !Ref ScrapeRegionUs
+          JOB_COUNTRIES: !Ref JobCountriesUs
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RunsTableName
+      Events:
+        UsWorkingHoursCron:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(0 9-23 * * ? *)
+            ScheduleExpressionTimezone: America/Los_Angeles
+            Description: Hourly US job fetch 09:00–23:59 LA (rests 00:00–08:59)
             State: ENABLED
             FlexibleTimeWindow:
               Mode: "OFF"
@@ -515,8 +571,11 @@ Outputs:
     Description: Health Lambda ARN
     Value: !GetAtt HealthFunction.Arn
   FetchJobsFunctionArn:
-    Description: Fetch jobs Lambda ARN
+    Description: Fetch jobs Lambda ARN (Europe)
     Value: !GetAtt FetchJobsFunction.Arn
+  FetchJobsUsFunctionArn:
+    Description: Fetch jobs Lambda ARN (United States)
+    Value: !GetAtt FetchJobsUsFunction.Arn
   JobRunsTableName:
     Description: DynamoDB table for fetch run history
     Value: !Ref RunsTableName

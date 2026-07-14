@@ -9,3 +9,4 @@ export * from "./jobTime.js";
 export * from "./keywordLabel.js";
 export * from "./keywords.js";
 export * from "./schedule.js";
+export * from "./scrapeRegions.js";

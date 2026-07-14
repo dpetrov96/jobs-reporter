@@ -44,6 +44,7 @@ export interface JobRunRecord {
   emailSent: boolean;
   emailSkipped: boolean;
   emailReason?: string;
+  scrapeRegion?: "europe" | "usa";
   /** @deprecated Legacy single-country runs */
   categories?: JobCategoryResult[];
 }
