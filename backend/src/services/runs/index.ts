@@ -1,5 +1,11 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  BatchGetCommand,
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  QueryCommand,
+} from "@aws-sdk/lib-dynamodb";
 import type { CountryRunResult } from "../linkedin/index.js";
 import type { SendEmailResult } from "../email/types.js";
 import type { ScrapeRegionId } from "../../shared/scrapeRegions.js";
@@ -335,6 +341,47 @@ export async function listJobRunsForRegionDay(
         regionDateKey(run.fetchedAt, region.timezone) === dayKey
     )
     .sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
+}
+
+/**
+ * Light list queries omit `countries`. Re-attach country shells (counts only after
+ * projectRunForList) so history rows can show per-market totals.
+ */
+export async function attachCountriesForList(runs: JobRunRecord[]): Promise<JobRunRecord[]> {
+  const tableName = getTableName();
+  if (!tableName || runs.length === 0) return runs;
+
+  const needsHydration = runs.filter(
+    (run) => !Array.isArray(run.countries) || run.countries.length === 0
+  );
+  if (needsHydration.length === 0) return runs;
+
+  const stage = process.env.APP_STAGE ?? "dev";
+  const response = await getDocClient().send(
+    new BatchGetCommand({
+      RequestItems: {
+        [tableName]: {
+          Keys: needsHydration.map((run) => ({ stage, fetchedAt: run.fetchedAt })),
+          ProjectionExpression: "fetchedAt, countries",
+        },
+      },
+    })
+  );
+
+  const byFetchedAt = new Map<string, CountryRunResult[]>();
+  for (const item of response.Responses?.[tableName] ?? []) {
+    const record = item as Pick<JobRunRecord, "fetchedAt" | "countries">;
+    if (typeof record.fetchedAt === "string" && Array.isArray(record.countries)) {
+      byFetchedAt.set(record.fetchedAt, record.countries);
+    }
+  }
+
+  return runs.map((run) => {
+    if (run.countries?.length) return run;
+    const countries = byFetchedAt.get(run.fetchedAt);
+    if (!countries?.length) return run;
+    return { ...run, countries };
+  });
 }
 
 /** Strip job listings + gzip blobs for list API responses (keeps payload under Lambda limits). */

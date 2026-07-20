@@ -12,9 +12,9 @@ import { DailySummaryBadge } from "./DailySummaryBadge";
 
 export function RunHistoryRow({ run }: { run: JobRunRecord }) {
   const normalized = normalizeRun(run);
-  const countriesWithJobs =
-    run.countryCount ??
-    normalized.countries.filter((c) => c.totalJobs > 0).length;
+  const countriesWithJobs = normalized.countries.some((c) => (c.totalJobs ?? 0) > 0)
+    ? normalized.countries.filter((c) => c.totalJobs > 0).length
+    : (run.countryCount ?? normalized.countries.length);
   const isDaily = isDailySummaryRun(run);
   const whenLabel = isDaily && run.dayLabel ? run.dayLabel : formatRunWhen(run.fetchedAt);
   const period = isDaily

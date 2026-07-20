@@ -16,7 +16,8 @@
     "logs:jobs": "aws logs tail /aws/lambda/lambda-linkedin-finder-FetchJobsFunction-7eEN47TavFpY --region eu-central-1 --since 5m",
     "test:local": "tsx scripts/test-local.ts",
     "test:fetch-jobs": "tsx scripts/test-fetch-jobs.ts",
-    "backfill:daily": "tsx scripts/backfill-daily-summaries.ts"
+    "backfill:daily": "tsx scripts/backfill-daily-summaries.ts",
+    "scrub:companies": "tsx scripts/scrub-blocked-companies.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.840.0",

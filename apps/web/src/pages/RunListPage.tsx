@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  fetchRun,
   fetchRuns,
   getScrapeRegion,
   isHourlyRun,
@@ -25,8 +26,21 @@ function ErrorState({ message }: { message: string }) {
   return <div className="py-4 text-sm text-red-600">{message}</div>;
 }
 
-function pickLatestHourlyRun(runs: JobRunRecord[]): JobRunRecord | null {
+function pickLatestHourlyMeta(runs: JobRunRecord[]): JobRunRecord | null {
   return runs.find((run) => isJobRunRecord(run) && isHourlyRun(run)) ?? null;
+}
+
+async function fetchLatestFullRun(
+  apiUrl: string,
+  scrapeRegion: ScrapeRegionId
+): Promise<JobRunRecord | null> {
+  const list = await fetchRuns(apiUrl, { limit: 5, scrapeRegion, reportKind: "hourly" });
+  const meta = pickLatestHourlyMeta(list.runs);
+  if (!meta) return null;
+
+  const detail = await fetchRun(apiUrl, meta.fetchedAt);
+  const run = detail.run;
+  return run && isJobRunRecord(run) ? run : meta;
 }
 
 const EMPTY_RUNS: Record<ScrapeRegionId, JobRunRecord | null> = {
@@ -73,15 +87,12 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
       setError(null);
 
       try {
-        const [europeResponse, usaResponse] = await Promise.all([
-          fetchRuns(apiUrl, { limit: 3, scrapeRegion: "europe" }),
-          fetchRuns(apiUrl, { limit: 3, scrapeRegion: "usa" }),
+        const [europe, usa] = await Promise.all([
+          fetchLatestFullRun(apiUrl, "europe"),
+          fetchLatestFullRun(apiUrl, "usa"),
         ]);
 
-        setRunsByRegion({
-          europe: pickLatestHourlyRun(europeResponse.runs),
-          usa: pickLatestHourlyRun(usaResponse.runs),
-        });
+        setRunsByRegion({ europe, usa });
       } catch (err) {
         if (!options?.background) {
           setError(err instanceof Error ? err.message : "Failed to load latest runs");
@@ -114,15 +125,22 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
         attempts += 1;
 
         try {
-          const response = await fetchRuns(apiUrl, { limit: 3, scrapeRegion: targetRegion });
-          const run = response.runs.find(
+          const response = await fetchRuns(apiUrl, {
+            limit: 5,
+            scrapeRegion: targetRegion,
+            reportKind: "hourly",
+          });
+          const meta = response.runs.find(
             (item) =>
               isJobRunRecord(item) &&
               isHourlyRun(item) &&
               item.fetchedAt !== previousFetchedAt
           );
 
-          if (run) {
+          if (meta) {
+            const detail = await fetchRun(apiUrl, meta.fetchedAt);
+            const run =
+              detail.run && isJobRunRecord(detail.run) ? detail.run : meta;
             setRunsByRegion((current) => ({ ...current, [targetRegion]: run }));
             stopScanning(targetRegion);
             return;

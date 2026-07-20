@@ -22,6 +22,7 @@ import {
 } from "./parser.js";
 import { filterJobsWithinPostedWindow, sortJobsByNewest, postedWithinToSeconds } from "./sort.js";
 import { countUniqueJobs } from "../../shared/jobCounts.js";
+import { filterBlockedCompanies } from "../../shared/companyBlocklist.js";
 import type { JobCategoryResult, JobListing } from "./types.js";
 
 export type { JobCategoryResult, JobListing };
@@ -158,7 +159,9 @@ async function fetchKeywordJobs(options: {
     await sleep(REQUEST_DELAY_MS);
   }
 
-  const filtered = filterJobsWithinPostedWindow([...byId.values()], windowSeconds);
+  const filtered = filterBlockedCompanies(
+    filterJobsWithinPostedWindow([...byId.values()], windowSeconds)
+  );
   const sorted = sortJobsByNewest(filtered).slice(0, limit);
   return enrichJobsFromDetail(sorted);
 }

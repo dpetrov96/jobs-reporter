@@ -1,5 +1,6 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import {
+  attachCountriesForList,
   listJobRunsFiltered,
   projectRunForList,
   type ReportKindFilter,
@@ -32,11 +33,12 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       reportKind,
       region
     );
+    const withCountries = await attachCountriesForList(runs);
 
     return jsonResponse(200, {
       ok: true,
-      count: runs.length,
-      runs: runs.map(projectRunForList),
+      count: withCountries.length,
+      runs: withCountries.map(projectRunForList),
       ...(nextCursor ? { nextCursor } : {}),
     });
   } catch (error) {

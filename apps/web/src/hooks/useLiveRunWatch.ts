@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  fetchRun,
   fetchRuns,
   formatCountdown,
   getMsUntilNextScheduledFetchForRegion,
@@ -52,12 +53,18 @@ export function useLiveRunWatch({
   }, [scrapeRegion]);
 
   const checkForNewRun = useCallback(async () => {
-    const response = await fetchRuns(apiUrl, { limit: 3, scrapeRegion });
-    const run = response.runs?.find((item) => isJobRunRecord(item) && isHourlyRun(item));
-    if (!run) return;
+    const response = await fetchRuns(apiUrl, {
+      limit: 5,
+      scrapeRegion,
+      reportKind: "hourly",
+    });
+    const meta = response.runs?.find((item) => isJobRunRecord(item) && isHourlyRun(item));
+    if (!meta) return;
 
     const previousFetchedAt = knownFetchedAtRef.current;
-    if (previousFetchedAt && run.fetchedAt !== previousFetchedAt) {
+    if (previousFetchedAt && meta.fetchedAt !== previousFetchedAt) {
+      const detail = await fetchRun(apiUrl, meta.fetchedAt);
+      const run = detail.run && isJobRunRecord(detail.run) ? detail.run : meta;
       knownFetchedAtRef.current = run.fetchedAt;
       onNewRun(run, previousFetchedAt);
       setNewRunFlash({
@@ -65,7 +72,7 @@ export function useLiveRunWatch({
       });
       window.setTimeout(() => setNewRunFlash(null), 10_000);
     } else if (!previousFetchedAt) {
-      knownFetchedAtRef.current = run.fetchedAt;
+      knownFetchedAtRef.current = meta.fetchedAt;
     }
   }, [apiUrl, onNewRun, scrapeRegion]);
 
