@@ -1,4 +1,8 @@
 import { countUniqueJobs } from "../../shared/jobCounts.js";
+import {
+  getCountryFlag,
+  lookupCountry,
+} from "../../shared/countries.js";
 import type { JobCategoryResult, JobListing } from "../linkedin/types.js";
 import type { CountryRunResult } from "./types.js";
 import type { JobRunRecord } from "../runs/index.js";
@@ -19,6 +23,30 @@ function mergeJobsByKeyword(
   }
 }
 
+function countriesFromRun(run: JobRunRecord): CountryRunResult[] {
+  if (Array.isArray(run.countries) && run.countries.length > 0) {
+    return run.countries;
+  }
+
+  const legacyCategories = (run.categories ?? []) as JobCategoryResult[];
+  if (legacyCategories.length === 0) return [];
+
+  const legacyCountry = lookupCountry(run.location);
+  const code = legacyCountry?.code ?? run.location?.slice(0, 2).toUpperCase() ?? "XX";
+  const location = run.location ?? legacyCountry?.location ?? "Unknown";
+
+  return [
+    {
+      location,
+      geoId: legacyCountry?.geoId ?? "",
+      flag: getCountryFlag(code, location),
+      code,
+      totalJobs: countUniqueJobs(legacyCategories),
+      categories: legacyCategories,
+    },
+  ];
+}
+
 /** Merge all hourly runs for a day into deduplicated country results. */
 export function aggregateDailyCountries(runs: JobRunRecord[]): CountryRunResult[] {
   const byCountry = new Map<
@@ -30,7 +58,7 @@ export function aggregateDailyCountries(runs: JobRunRecord[]): CountryRunResult[
   >();
 
   for (const run of runs) {
-    for (const country of run.countries) {
+    for (const country of countriesFromRun(run)) {
       let entry = byCountry.get(country.code);
       if (!entry) {
         entry = {
@@ -45,7 +73,7 @@ export function aggregateDailyCountries(runs: JobRunRecord[]): CountryRunResult[
         byCountry.set(country.code, entry);
       }
 
-      mergeJobsByKeyword(entry.jobsByKeyword, country.categories);
+      mergeJobsByKeyword(entry.jobsByKeyword, country.categories ?? []);
     }
   }
 

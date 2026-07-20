@@ -1,3 +1,6 @@
+import type { ScrapeRegionId } from "./scrapeRegions.js";
+import { getScrapeRegion } from "./scrapeRegions.js";
+
 export const CRON_TIMEZONE = "Europe/Sofia";
 export const CRON_WORKING_HOURS = { start: 9, end: 23 } as const;
 
@@ -64,6 +67,69 @@ export function getNextScheduledFetch(from = new Date()): Date {
 
 export function getMsUntilNextScheduledFetch(from = new Date()): number {
   return Math.max(0, getNextScheduledFetch(from).getTime() - from.getTime());
+}
+
+function getTimezoneParts(
+  date: Date,
+  timezone: string
+): { hour: number; minute: number; second: number } {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone,
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+    hour12: false,
+  });
+
+  const [hour, minute, second] = formatter.format(date).split(":").map(Number);
+  return { hour, minute, second };
+}
+
+export function getNextScheduledFetchForRegion(
+  regionId: ScrapeRegionId,
+  from = new Date()
+): Date {
+  const region = getScrapeRegion(regionId);
+  const { start, end } = region.workingHours;
+  const startMs = Math.ceil(from.getTime() / 60_000) * 60_000;
+
+  for (let offsetMin = 0; offsetMin < 24 * 60; offsetMin += 1) {
+    const candidate = new Date(startMs + offsetMin * 60_000);
+    const { hour, minute } = getTimezoneParts(candidate, region.timezone);
+
+    if (
+      minute === 0 &&
+      hour >= start &&
+      hour <= end &&
+      candidate.getTime() > from.getTime() + 500
+    ) {
+      return candidate;
+    }
+  }
+
+  throw new Error(`Could not compute next scheduled fetch for ${regionId}`);
+}
+
+export function getMsUntilNextScheduledFetchForRegion(
+  regionId: ScrapeRegionId,
+  from = new Date()
+): number {
+  return Math.max(0, getNextScheduledFetchForRegion(regionId, from).getTime() - from.getTime());
+}
+
+export function isNearCronSlotForRegion(regionId: ScrapeRegionId, date = new Date()): boolean {
+  const region = getScrapeRegion(regionId);
+  const { hour, minute } = getTimezoneParts(date, region.timezone);
+  return (
+    hour >= region.workingHours.start &&
+    hour <= region.workingHours.end &&
+    minute < 10
+  );
+}
+
+export function formatCronWorkingHoursRangeForRegion(regionId: ScrapeRegionId): string {
+  const { start, end } = getScrapeRegion(regionId).workingHours;
+  return `${formatHour12(start)} and ${formatHour12(end)}`;
 }
 
 export function formatCountdown(ms: number): string {

@@ -314,6 +314,7 @@ Resources:
         Variables:
           RUNS_TABLE_NAME: !Ref RunsTableName
           FETCH_JOBS_FUNCTION_ARN: !GetAtt FetchJobsFunction.Arn
+          FETCH_JOBS_US_FUNCTION_ARN: !GetAtt FetchJobsUsFunction.Arn
           MANUAL_FETCH_COOLDOWN_MINUTES: !Ref ManualFetchCooldownMinutes
           MANUAL_FETCH_MIN_GAP_MINUTES: !Ref ManualFetchMinGapMinutes
       Policies:
@@ -322,7 +323,9 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: lambda:InvokeFunction
-              Resource: !GetAtt FetchJobsFunction.Arn
+              Resource:
+                - !GetAtt FetchJobsFunction.Arn
+                - !GetAtt FetchJobsUsFunction.Arn
       Events:
         TriggerFetchStatusApi:
           Type: HttpApi

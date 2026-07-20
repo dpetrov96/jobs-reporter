@@ -15,7 +15,8 @@
     "logs": "sam logs -n HealthFunction --stack-name lambda-linkedin-finder --tail",
     "logs:jobs": "aws logs tail /aws/lambda/lambda-linkedin-finder-FetchJobsFunction-7eEN47TavFpY --region eu-central-1 --since 5m",
     "test:local": "tsx scripts/test-local.ts",
-    "test:fetch-jobs": "tsx scripts/test-fetch-jobs.ts"
+    "test:fetch-jobs": "tsx scripts/test-fetch-jobs.ts",
+    "backfill:daily": "tsx scripts/backfill-daily-summaries.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.840.0",

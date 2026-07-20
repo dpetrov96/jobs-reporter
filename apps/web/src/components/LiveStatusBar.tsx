@@ -4,12 +4,14 @@ export function LiveStatusBar({
   countdownLabel,
   nearCronSlot,
   lastFetchedAt,
+  timezoneLabel = "Sofia",
   newRunFlash,
   onDismissFlash,
 }: {
   countdownLabel: string;
   nearCronSlot: boolean;
   lastFetchedAt?: string;
+  timezoneLabel?: string;
   newRunFlash: { totalJobs: number } | null;
   onDismissFlash: () => void;
 }) {
@@ -50,6 +52,7 @@ export function LiveStatusBar({
         <span className="text-emerald-900">
           Next auto-scan in{" "}
           <strong className="tabular-nums text-emerald-950">{countdownLabel}</strong>
+          <span className="text-xs font-normal text-emerald-700"> · {timezoneLabel}</span>
         </span>
 
         {nearCronSlot ? (

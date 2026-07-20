@@ -9,6 +9,7 @@ import {
   regionDateKey,
 } from "../../shared/scrapeRegions.js";
 import { RATE_LIMIT_SK } from "./rate-limit.js";
+import { gunzipCountries } from "../report/slimDailyCountries.js";
 
 function isJobRunItem(item: unknown): item is JobRunRecord {
   if (!item || typeof item !== "object") return false;
@@ -21,9 +22,13 @@ function isJobRunItem(item: unknown): item is JobRunRecord {
 
   if (Array.isArray(record.countries) && record.countries.length > 0) return true;
   if (Array.isArray(record.categories)) return true;
+  // Light list projections may omit countries/categories.
+  if (typeof record.totalJobs === "number") return true;
 
   return false;
 }
+
+export type ReportKind = "hourly" | "daily";
 
 export interface JobRunRecord {
   stage: string;
@@ -39,6 +44,13 @@ export interface JobRunRecord {
   emailSkipped: boolean;
   emailReason?: string;
   scrapeRegion?: ScrapeRegionId;
+  /** Absent or "hourly" for scrape runs; "daily" for end-of-day summaries. */
+  reportKind?: ReportKind;
+  dayKey?: string;
+  dayLabel?: string;
+  scrapeCount?: number;
+  /** Gzipped JSON of full countries (daily summaries that exceed item size). */
+  countriesGzip?: Uint8Array;
   /** @deprecated Legacy single-country runs */
   categories?: Array<{ keyword: string; jobs: unknown[] }>;
 }
@@ -46,11 +58,16 @@ export interface JobRunRecord {
 export interface SaveJobRunInput {
   location: string;
   fetchedAt: string;
-  postedWithin: string;
+  postedWithin?: string;
   postedWithinLabel: string;
   countries: CountryRunResult[];
   countryCount?: number;
   scrapeRegion?: ScrapeRegionId;
+  reportKind?: ReportKind;
+  dayKey?: string;
+  dayLabel?: string;
+  scrapeCount?: number;
+  countriesGzip?: Uint8Array;
 }
 
 export type SaveJobRunResult =
@@ -99,13 +116,18 @@ export async function saveJobRun(
     stage,
     fetchedAt: input.fetchedAt,
     location: input.location,
-    postedWithin: input.postedWithin,
+    postedWithin: input.postedWithin ?? "",
     postedWithinLabel: input.postedWithinLabel,
     totalJobs,
     countryCount: input.countryCount ?? input.countries.length,
     categoryCount: countCategories(input.countries),
     countries: input.countries,
     scrapeRegion: input.scrapeRegion ?? "europe",
+    reportKind: input.reportKind ?? "hourly",
+    dayKey: input.dayKey,
+    dayLabel: input.dayLabel,
+    scrapeCount: input.scrapeCount,
+    countriesGzip: input.countriesGzip,
     emailSent: emailResult?.sent === true,
     emailSkipped: emailResult?.sent === false,
     emailReason:
@@ -127,9 +149,13 @@ export interface ListJobRunsResult {
   nextCursor?: string;
 }
 
+const LIST_LIGHT_PROJECTION =
+  "#stage, fetchedAt, scrapeRegion, reportKind, dayKey, dayLabel, totalJobs, countryCount, scrapeCount, postedWithinLabel, postedWithin, #loc, emailSent, emailSkipped, emailReason, categoryCount";
+
 export async function listJobRuns(
   limit = 20,
-  cursor?: string
+  cursor?: string,
+  options: { light?: boolean } = {}
 ): Promise<ListJobRunsResult> {
   const tableName = getTableName();
 
@@ -139,14 +165,20 @@ export async function listJobRuns(
 
   const stage = process.env.APP_STAGE ?? "dev";
   const fetchLimit = Math.min(Math.max(limit * 5, limit), 50);
+  const light = options.light === true;
   const response = await getDocClient().send(
     new QueryCommand({
       TableName: tableName,
       KeyConditionExpression: "#stage = :stage",
-      ExpressionAttributeNames: { "#stage": "stage" },
+      ExpressionAttributeNames: light
+        ? { "#stage": "stage", "#loc": "location" }
+        : { "#stage": "stage" },
       ExpressionAttributeValues: { ":stage": stage },
       ScanIndexForward: false,
       Limit: fetchLimit,
+      ...(light
+        ? { ProjectionExpression: LIST_LIGHT_PROJECTION }
+        : {}),
       ...(cursor
         ? { ExclusiveStartKey: { stage, fetchedAt: cursor } }
         : {}),
@@ -226,6 +258,68 @@ export async function listJobRunsInPeriodPage(
   return { runs, nextCursor };
 }
 
+export type ReportKindFilter = "all" | "hourly" | "daily";
+
+function matchesReportKind(run: JobRunRecord, kind: ReportKindFilter): boolean {
+  if (kind === "all") return true;
+  const isDaily = run.reportKind === "daily";
+  return kind === "daily" ? isDaily : !isDaily;
+}
+
+export async function listJobRunsFiltered(
+  limit = 20,
+  cursor?: string,
+  reportKind: ReportKindFilter = "all",
+  regionId?: ScrapeRegionId
+): Promise<ListJobRunsResult> {
+  if (reportKind === "all" && !regionId) {
+    return listJobRuns(limit, cursor);
+  }
+
+  const matched: JobRunRecord[] = [];
+  let scanCursor = cursor;
+  let nextCursor: string | undefined;
+  let pages = 0;
+  const maxPages = reportKind === "all" ? 40 : 80;
+  const pageSize = reportKind === "all" ? Math.min(limit * 5, 50) : 50;
+
+  while (matched.length < limit && pages < maxPages) {
+    pages += 1;
+    const page = await listJobRuns(pageSize, scanCursor, {
+      light: reportKind !== "all",
+    });
+
+    for (const run of page.runs) {
+      if (regionId && (run.scrapeRegion ?? "europe") !== regionId) continue;
+      if (!matchesReportKind(run, reportKind)) continue;
+      matched.push(run);
+      if (matched.length >= limit) break;
+    }
+
+    nextCursor = page.nextCursor;
+
+    if (matched.length >= limit || !page.nextCursor) {
+      break;
+    }
+
+    scanCursor = page.nextCursor;
+  }
+
+  return {
+    runs: matched.slice(0, limit),
+    nextCursor: matched.length >= limit ? nextCursor : undefined,
+  };
+}
+
+export async function listJobRunsForRegion(
+  regionId: ScrapeRegionId,
+  limit = 20,
+  cursor?: string,
+  reportKind: ReportKindFilter = "all"
+): Promise<ListJobRunsResult> {
+  return listJobRunsFiltered(limit, cursor, reportKind, regionId);
+}
+
 export async function listJobRunsForRegionDay(
   scrapeRegion: ScrapeRegionId,
   dayKey: string
@@ -241,6 +335,34 @@ export async function listJobRunsForRegionDay(
         regionDateKey(run.fetchedAt, region.timezone) === dayKey
     )
     .sort((a, b) => Date.parse(a.fetchedAt) - Date.parse(b.fetchedAt));
+}
+
+/** Strip job listings + gzip blobs for list API responses (keeps payload under Lambda limits). */
+export function projectRunForList(run: JobRunRecord): JobRunRecord {
+  const { countriesGzip: _gzip, categories: _legacy, ...rest } = run;
+  return {
+    ...rest,
+    countries: (run.countries ?? []).map((country) => ({
+      location: country.location,
+      geoId: country.geoId,
+      flag: country.flag,
+      code: country.code,
+      totalJobs: country.totalJobs,
+      categories: [],
+    })),
+  };
+}
+
+export function hydrateJobRunCountries(run: JobRunRecord): JobRunRecord {
+  if (!run.countriesGzip) return run;
+
+  try {
+    const countries = gunzipCountries(run.countriesGzip);
+    const { countriesGzip: _omit, ...rest } = run;
+    return { ...rest, countries };
+  } catch {
+    return run;
+  }
 }
 
 export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null> {
@@ -263,5 +385,6 @@ export async function getJobRun(fetchedAt: string): Promise<JobRunRecord | null>
   );
 
   const item = response.Item;
-  return isJobRunItem(item) ? item : null;
+  if (!isJobRunItem(item)) return null;
+  return hydrateJobRunCountries(item);
 }

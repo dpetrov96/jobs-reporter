@@ -39,14 +39,23 @@ export const handler: ScheduledHandler = async () => {
 
   let emailResult = null;
 
-  try {
-    emailResult = await sendJobReportEmail(meta);
-    console.log("[fetch-jobs] email result:", JSON.stringify(emailResult));
-  } catch (error) {
-    console.error(
-      "[fetch-jobs] email failed:",
-      error instanceof Error ? error.message : error
-    );
+  if (region.id === "usa") {
+    emailResult = {
+      sent: false as const,
+      skipped: true as const,
+      reason: "hourly_email_disabled_for_usa",
+    };
+    console.log("[fetch-jobs] skipping hourly email for usa — daily summary only");
+  } else {
+    try {
+      emailResult = await sendJobReportEmail(meta);
+      console.log("[fetch-jobs] email result:", JSON.stringify(emailResult));
+    } catch (error) {
+      console.error(
+        "[fetch-jobs] email failed:",
+        error instanceof Error ? error.message : error
+      );
+    }
   }
 
   try {

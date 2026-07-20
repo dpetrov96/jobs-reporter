@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRuns, isJobRunRecord } from "@jobs-reporter/shared";
-import type { JobRunRecord } from "@jobs-reporter/shared";
+import {
+  fetchRuns,
+  getScrapeRegion,
+  isHourlyRun,
+  isJobRunRecord,
+} from "@jobs-reporter/shared";
+import type { JobRunRecord, ScrapeRegionId } from "@jobs-reporter/shared";
 import { useLiveRunWatch } from "../hooks/useLiveRunWatch";
-import { LiveStatusBar } from "../components/LiveStatusBar";
-import { RunNowButton } from "../components/RunNowButton";
+import { useScrapeRegion } from "../hooks/useScrapeRegion";
+import { RegionMarketPanel } from "../components/RegionMarketPanel";
 import { RunReport } from "../components/RunReport";
 import { ScanStatusBanner } from "../components/ScanStatusBanner";
 
@@ -20,15 +25,27 @@ function ErrorState({ message }: { message: string }) {
   return <div className="py-4 text-sm text-red-600">{message}</div>;
 }
 
+function pickLatestHourlyRun(runs: JobRunRecord[]): JobRunRecord | null {
+  return runs.find((run) => isJobRunRecord(run) && isHourlyRun(run)) ?? null;
+}
+
+const EMPTY_RUNS: Record<ScrapeRegionId, JobRunRecord | null> = {
+  europe: null,
+  usa: null,
+};
+
 export function RunListPage({ apiUrl }: { apiUrl: string }) {
-  const [latestRun, setLatestRun] = useState<JobRunRecord | null>(null);
+  const { region, setRegion } = useScrapeRegion();
+  const [runsByRegion, setRunsByRegion] =
+    useState<Record<ScrapeRegionId, JobRunRecord | null>>(EMPTY_RUNS);
   const [loading, setLoading] = useState(true);
-  const [isScanning, setIsScanning] = useState(false);
+  const [scanningRegion, setScanningRegion] = useState<ScrapeRegionId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollTimerRef = useRef<number | null>(null);
-  const latestRunRef = useRef(latestRun);
+  const runsByRegionRef = useRef(runsByRegion);
 
-  latestRunRef.current = latestRun;
+  runsByRegionRef.current = runsByRegion;
+  const latestRun = runsByRegion[region];
 
   const clearPollTimer = useCallback(() => {
     if (pollTimerRef.current != null) {
@@ -37,12 +54,18 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
     }
   }, []);
 
-  const stopScanning = useCallback(() => {
-    clearPollTimer();
-    setIsScanning(false);
-  }, [clearPollTimer]);
+  const stopScanning = useCallback(
+    (targetRegion?: ScrapeRegionId) => {
+      clearPollTimer();
+      setScanningRegion((current) => {
+        if (!targetRegion || current === targetRegion) return null;
+        return current;
+      });
+    },
+    [clearPollTimer]
+  );
 
-  const loadLatest = useCallback(
+  const loadAllRegions = useCallback(
     async (options?: { background?: boolean }) => {
       if (!options?.background) {
         setLoading(true);
@@ -50,13 +73,19 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
       setError(null);
 
       try {
-        const response = await fetchRuns(apiUrl, { limit: 5 });
-        const run = response.runs?.find(isJobRunRecord) ?? null;
-        setLatestRun(run);
+        const [europeResponse, usaResponse] = await Promise.all([
+          fetchRuns(apiUrl, { limit: 3, scrapeRegion: "europe" }),
+          fetchRuns(apiUrl, { limit: 3, scrapeRegion: "usa" }),
+        ]);
+
+        setRunsByRegion({
+          europe: pickLatestHourlyRun(europeResponse.runs),
+          usa: pickLatestHourlyRun(usaResponse.runs),
+        });
       } catch (err) {
         if (!options?.background) {
-          setError(err instanceof Error ? err.message : "Failed to load latest run");
-          setLatestRun(null);
+          setError(err instanceof Error ? err.message : "Failed to load latest runs");
+          setRunsByRegion(EMPTY_RUNS);
         }
       } finally {
         if (!options?.background) {
@@ -68,135 +97,117 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
   );
 
   useEffect(() => {
-    void loadLatest();
-  }, [loadLatest]);
+    void loadAllRegions();
+  }, [loadAllRegions]);
 
   useEffect(() => {
     return () => clearPollTimer();
   }, [clearPollTimer]);
 
-  const startPolling = useCallback(() => {
-    clearPollTimer();
-    const previousFetchedAt = latestRunRef.current?.fetchedAt;
-    let attempts = 0;
+  const startPolling = useCallback(
+    (targetRegion: ScrapeRegionId) => {
+      clearPollTimer();
+      const previousFetchedAt = runsByRegionRef.current[targetRegion]?.fetchedAt;
+      let attempts = 0;
 
-    const poll = async () => {
-      attempts += 1;
+      const poll = async () => {
+        attempts += 1;
 
-      try {
-        const response = await fetchRuns(apiUrl, { limit: 5 });
-        const run = response.runs?.find(
-          (item) => isJobRunRecord(item) && item.fetchedAt !== previousFetchedAt
-        );
+        try {
+          const response = await fetchRuns(apiUrl, { limit: 3, scrapeRegion: targetRegion });
+          const run = response.runs.find(
+            (item) =>
+              isJobRunRecord(item) &&
+              isHourlyRun(item) &&
+              item.fetchedAt !== previousFetchedAt
+          );
 
-        if (run) {
-          setLatestRun(run);
-          stopScanning();
+          if (run) {
+            setRunsByRegion((current) => ({ ...current, [targetRegion]: run }));
+            stopScanning(targetRegion);
+            return;
+          }
+        } catch {
+          // Fetch may still be running on the backend.
+        }
+
+        if (attempts < 24) {
+          pollTimerRef.current = window.setTimeout(() => void poll(), 5000);
           return;
         }
-      } catch {
-        // Fetch may still be running on the backend.
-      }
 
-      if (attempts < 24) {
-        pollTimerRef.current = window.setTimeout(() => void poll(), 5000);
-        return;
-      }
+        stopScanning(targetRegion);
+        void loadAllRegions({ background: true });
+      };
 
-      stopScanning();
-      void loadLatest({ background: true });
-    };
+      pollTimerRef.current = window.setTimeout(() => void poll(), 5000);
+    },
+    [apiUrl, clearPollTimer, loadAllRegions, stopScanning]
+  );
 
-    pollTimerRef.current = window.setTimeout(() => void poll(), 5000);
-  }, [apiUrl, clearPollTimer, loadLatest, stopScanning]);
-
-  const handleScanStart = useCallback(() => {
-    setIsScanning(true);
+  const handleScanStart = useCallback((targetRegion: ScrapeRegionId) => {
+    setScanningRegion(targetRegion);
   }, []);
 
-  const handleScanTriggered = useCallback(() => {
-    setIsScanning(true);
-    startPolling();
-  }, [startPolling]);
+  const handleScanTriggered = useCallback(
+    (targetRegion: ScrapeRegionId) => {
+      setScanningRegion(targetRegion);
+      startPolling(targetRegion);
+    },
+    [startPolling]
+  );
 
-  const handleLiveNewRun = useCallback((run: JobRunRecord) => {
-    setLatestRun(run);
+  const handleLiveNewRun = useCallback((run: JobRunRecord, runRegion: ScrapeRegionId) => {
+    if (!isHourlyRun(run)) return;
+    setRunsByRegion((current) => ({ ...current, [runRegion]: run }));
     setError(null);
   }, []);
 
   const live = useLiveRunWatch({
     apiUrl,
+    scrapeRegion: region,
     knownFetchedAt: latestRun?.fetchedAt,
-    enabled: !isScanning && !loading,
-    onNewRun: handleLiveNewRun,
+    enabled: scanningRegion === null && !loading,
+    onNewRun: (run) => handleLiveNewRun(run, region),
   });
 
-  if (loading) {
-    return (
-      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-        <LoadingState label="Loading…" />
-      </main>
-    );
-  }
+  useEffect(() => {
+    if (live.newRunFlash && live.newRunFlash.totalJobs > 0) {
+      void loadAllRegions({ background: true });
+    }
+  }, [live.newRunFlash, loadAllRegions]);
 
-  if (error && !latestRun && !isScanning) {
-    return (
-      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-        <ErrorState message={error} />
-      </main>
-    );
-  }
-
-  if (!latestRun) {
-    return (
-      <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-        <div className="space-y-3">
-          <header className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-2.5 py-2 ring-1 ring-zinc-200/70 sm:px-3">
-            <p className="text-xs font-medium text-zinc-600">
-              {isScanning ? "Checking job market…" : "No data yet"}
-            </p>
-            <RunNowButton
-              apiUrl={apiUrl}
-              compact
-              onScanStart={handleScanStart}
-              onTriggered={handleScanTriggered}
-              onScanEnd={stopScanning}
-            />
-          </header>
-          {isScanning ? (
-            <ScanStatusBanner message="Scanning LinkedIn across countries — this may take a few minutes." />
-          ) : (
-            <>
-              <LiveStatusBar
-                countdownLabel={live.countdownLabel}
-                nearCronSlot={live.nearCronSlot}
-                newRunFlash={live.newRunFlash}
-                onDismissFlash={live.dismissFlash}
-              />
-              <p className="py-8 text-center text-sm text-zinc-400">
-                No jobs loaded yet. Waiting for the next scan or hit Refresh.
-              </p>
-            </>
-          )}
-        </div>
-      </main>
-    );
-  }
+  const regionConfig = getScrapeRegion(region);
 
   return (
     <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
-      <RunReport
-        run={latestRun}
-        apiUrl={apiUrl}
-        isScanning={isScanning}
-        onScanStart={handleScanStart}
-        onScanTriggered={handleScanTriggered}
-        onScanEnd={stopScanning}
-        liveCountdownLabel={live.countdownLabel}
-        liveNearCronSlot={live.nearCronSlot}
-        liveNewRunFlash={live.newRunFlash}
-        onDismissLiveFlash={live.dismissFlash}
-      />
+      <div className="space-y-4">
+        <RegionMarketPanel
+          apiUrl={apiUrl}
+          activeRegion={region}
+          runsByRegion={runsByRegion}
+          scanningRegion={scanningRegion}
+          onRegionChange={setRegion}
+          onScanStart={handleScanStart}
+          onScanTriggered={handleScanTriggered}
+          onScanEnd={stopScanning}
+        />
+
+        {loading ? (
+          <LoadingState label="Loading job listings…" />
+        ) : error && !latestRun && scanningRegion !== region ? (
+          <ErrorState message={error} />
+        ) : scanningRegion === region ? (
+          <ScanStatusBanner message={`Scanning LinkedIn in ${regionConfig.label} — this may take a few minutes.`} />
+        ) : !latestRun ? (
+          <p className="py-8 text-center text-sm text-zinc-400">
+            No jobs loaded yet for {regionConfig.label}. Use Refresh above or wait for the next
+            auto-scan.
+          </p>
+        ) : (
+          <RunReport run={latestRun} isScanning={scanningRegion === region} />
+        )}
+      </div>
     </main>
   );
 }

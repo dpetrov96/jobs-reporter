@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import type { JobRunRecord } from "@jobs-reporter/shared";
-import { normalizeRun } from "@jobs-reporter/shared";
+import { isDailySummaryRun, normalizeRun } from "@jobs-reporter/shared";
 import { CountryPanel } from "./CountryPanel";
 import { CountryTabs } from "./CountryTabs";
-import { LiveStatusBar } from "./LiveStatusBar";
-import { RunSummaryHeader } from "./RunSummaryHeader";
+import { DailySummaryBadge } from "./DailySummaryBadge";
 import { ScanStatusBanner } from "./ScanStatusBanner";
 
 function defaultCountryCode(countries: ReturnType<typeof normalizeRun>["countries"]): string {
@@ -14,29 +13,14 @@ function defaultCountryCode(countries: ReturnType<typeof normalizeRun>["countrie
 
 export function RunReport({
   run,
-  apiUrl,
   isScanning = false,
-  onScanStart,
-  onScanTriggered,
-  onScanEnd,
-  liveCountdownLabel,
-  liveNearCronSlot,
-  liveNewRunFlash,
-  onDismissLiveFlash,
 }: {
   run: JobRunRecord;
-  apiUrl?: string;
   isScanning?: boolean;
-  onScanStart?: () => void;
-  onScanTriggered?: () => void;
-  onScanEnd?: () => void;
-  liveCountdownLabel?: string;
-  liveNearCronSlot?: boolean;
-  liveNewRunFlash?: { totalJobs: number } | null;
-  onDismissLiveFlash?: () => void;
 }) {
   const normalized = normalizeRun(run);
   const countries = normalized.countries;
+  const isDaily = isDailySummaryRun(run);
   const [activeCode, setActiveCode] = useState(() => defaultCountryCode(countries));
 
   useEffect(() => {
@@ -45,30 +29,25 @@ export function RunReport({
 
   const activeCountry = useMemo(
     () => countries.find((c) => c.code === activeCode) ?? countries[0],
-    [countries, activeCode],
+    [countries, activeCode]
   );
+
+  const periodLabel = isDaily
+    ? run.scrapeCount
+      ? `${run.scrapeCount} scrapes`
+      : "today's scrapes"
+    : normalized.postedWithinLabel;
 
   return (
     <div className="space-y-3">
-      <RunSummaryHeader
-        run={run}
-        apiUrl={apiUrl}
-        isScanning={isScanning}
-        onScanStart={onScanStart}
-        onScanTriggered={onScanTriggered}
-        onScanEnd={onScanEnd}
-      />
-
-      {isScanning ? (
-        <ScanStatusBanner message="Checking job market — scanning for new listings…" />
-      ) : liveCountdownLabel ? (
-        <LiveStatusBar
-          countdownLabel={liveCountdownLabel}
-          nearCronSlot={liveNearCronSlot ?? false}
-          lastFetchedAt={run.fetchedAt}
-          newRunFlash={liveNewRunFlash ?? null}
-          onDismissFlash={onDismissLiveFlash ?? (() => undefined)}
-        />
+      {isDaily ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
+          <DailySummaryBadge />
+          {run.dayLabel ? <span className="font-medium text-zinc-900">{run.dayLabel}</span> : null}
+          {run.scrapeCount ? (
+            <span className="text-zinc-500">· {run.scrapeCount} scrapes aggregated</span>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="sticky top-0 z-10 -mx-3 border-b border-zinc-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-0 sm:px-0 sm:py-4">
@@ -80,7 +59,7 @@ export function RunReport({
           <CountryPanel
             key={activeCountry.code}
             country={activeCountry}
-            postedWithinLabel={normalized.postedWithinLabel}
+            postedWithinLabel={periodLabel}
             isScanning={isScanning}
           />
         </div>

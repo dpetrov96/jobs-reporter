@@ -1,5 +1,7 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, GetCommand, PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import type { ScrapeRegionId } from "../../shared/scrapeRegions.js";
+import { manualTriggerRateLimitSk, isRateLimitRecord } from "./rate-limit-keys.js";
 
 export const RATE_LIMIT_SK = "__manual_trigger_rate_limit__";
 
@@ -40,14 +42,17 @@ function getMinRunGapMs(): number {
   return Math.max(1, minutes) * 60_000;
 }
 
-async function getLastManualTriggerAt(stage: string): Promise<string | undefined> {
+async function getLastManualTriggerAt(
+  stage: string,
+  region: ScrapeRegionId
+): Promise<string | undefined> {
   const tableName = getTableName();
   if (!tableName) return undefined;
 
   const response = await getDocClient().send(
     new GetCommand({
       TableName: tableName,
-      Key: { stage, fetchedAt: RATE_LIMIT_SK },
+      Key: { stage, fetchedAt: manualTriggerRateLimitSk(region) },
     })
   );
 
@@ -55,29 +60,46 @@ async function getLastManualTriggerAt(stage: string): Promise<string | undefined
   return typeof value === "string" ? value : undefined;
 }
 
-async function getLatestRunAt(stage: string): Promise<string | undefined> {
+async function getLatestRunAt(stage: string, region: ScrapeRegionId): Promise<string | undefined> {
   const tableName = getTableName();
   if (!tableName) return undefined;
 
-  const response = await getDocClient().send(
-    new QueryCommand({
-      TableName: tableName,
-      KeyConditionExpression: "#stage = :stage",
-      ExpressionAttributeNames: { "#stage": "stage" },
-      ExpressionAttributeValues: { ":stage": stage },
-      ScanIndexForward: false,
-      Limit: 5,
-    })
-  );
+  let cursor: string | undefined;
 
-  const latest = (response.Items ?? []).find(
-    (item) => typeof item.fetchedAt === "string" && item.fetchedAt !== RATE_LIMIT_SK
-  );
+  do {
+    const response = await getDocClient().send(
+      new QueryCommand({
+        TableName: tableName,
+        KeyConditionExpression: "#stage = :stage",
+        ExpressionAttributeNames: { "#stage": "stage" },
+        ExpressionAttributeValues: { ":stage": stage },
+        ScanIndexForward: false,
+        Limit: 25,
+        ...(cursor ? { ExclusiveStartKey: { stage, fetchedAt: cursor } } : {}),
+      })
+    );
 
-  return typeof latest?.fetchedAt === "string" ? latest.fetchedAt : undefined;
+    for (const item of response.Items ?? []) {
+      const fetchedAt = item.fetchedAt;
+      if (typeof fetchedAt !== "string") continue;
+      if (isRateLimitRecord(fetchedAt, item.recordType as string | undefined)) continue;
+      if ((item.scrapeRegion ?? "europe") === region) {
+        return fetchedAt;
+      }
+    }
+
+    cursor =
+      typeof response.LastEvaluatedKey?.fetchedAt === "string"
+        ? response.LastEvaluatedKey.fetchedAt
+        : undefined;
+  } while (cursor);
+
+  return undefined;
 }
 
-export async function getManualTriggerStatus(): Promise<ManualTriggerStatus> {
+export async function getManualTriggerStatus(
+  region: ScrapeRegionId = "europe"
+): Promise<ManualTriggerStatus> {
   const stage = process.env.APP_STAGE ?? "dev";
   const cooldownMs = getCooldownMs();
   const minRunGapMs = getMinRunGapMs();
@@ -85,8 +107,8 @@ export async function getManualTriggerStatus(): Promise<ManualTriggerStatus> {
   const minRunGapMinutes = Math.round(minRunGapMs / 60_000);
 
   const [lastManualTriggeredAt, lastRunAt] = await Promise.all([
-    getLastManualTriggerAt(stage),
-    getLatestRunAt(stage),
+    getLastManualTriggerAt(stage, region),
+    getLatestRunAt(stage, region),
   ]);
 
   const now = Date.now();
@@ -133,7 +155,7 @@ export async function getManualTriggerStatus(): Promise<ManualTriggerStatus> {
   };
 }
 
-export async function recordManualTrigger(): Promise<void> {
+export async function recordManualTrigger(region: ScrapeRegionId = "europe"): Promise<void> {
   const tableName = getTableName();
   if (!tableName) {
     throw new Error("RUNS_TABLE_NAME missing");
@@ -147,9 +169,10 @@ export async function recordManualTrigger(): Promise<void> {
       TableName: tableName,
       Item: {
         stage,
-        fetchedAt: RATE_LIMIT_SK,
+        fetchedAt: manualTriggerRateLimitSk(region),
         lastManualTriggeredAt: now,
         recordType: "manual_trigger_rate_limit",
+        scrapeRegion: region,
       },
     })
   );

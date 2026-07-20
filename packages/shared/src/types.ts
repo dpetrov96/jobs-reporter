@@ -31,6 +31,8 @@ export interface CountryRunResult {
   categories: JobCategoryResult[];
 }
 
+export type ReportKind = "hourly" | "daily";
+
 export interface JobRunRecord {
   stage: string;
   fetchedAt: string;
@@ -45,13 +47,31 @@ export interface JobRunRecord {
   emailSkipped: boolean;
   emailReason?: string;
   scrapeRegion?: "europe" | "usa";
+  /** Absent or "hourly" for scrape runs; "daily" for end-of-day summaries. */
+  reportKind?: ReportKind;
+  dayKey?: string;
+  dayLabel?: string;
+  scrapeCount?: number;
   /** @deprecated Legacy single-country runs */
   categories?: JobCategoryResult[];
 }
 
+export function isDailySummaryRun(run: Pick<JobRunRecord, "reportKind">): boolean {
+  return run.reportKind === "daily";
+}
+
+export function isHourlyRun(run: Pick<JobRunRecord, "reportKind">): boolean {
+  return run.reportKind !== "daily";
+}
+
+export type RunReportKindFilter = "all" | "hourly" | "daily";
+
 export interface FetchRunsOptions {
   limit?: number;
   cursor?: string;
+  scrapeRegion?: "europe" | "usa";
+  /** Filter by report kind. Default "all". */
+  reportKind?: RunReportKindFilter;
 }
 
 export interface ListRunsResponse {
@@ -107,6 +127,7 @@ export function encodeRunId(fetchedAt: string): string {
 }
 
 export const MANUAL_TRIGGER_RATE_LIMIT_SK = "__manual_trigger_rate_limit__";
+export const MANUAL_TRIGGER_RATE_LIMIT_US_SK = "__manual_trigger_rate_limit_usa__";
 
 export function isJobRunRecord(run: unknown): run is JobRunRecord {
   if (!run || typeof run !== "object") return false;
@@ -114,11 +135,13 @@ export function isJobRunRecord(run: unknown): run is JobRunRecord {
   const record = run as Partial<JobRunRecord> & { recordType?: string };
   if (typeof record.fetchedAt !== "string") return false;
   if (record.fetchedAt === MANUAL_TRIGGER_RATE_LIMIT_SK) return false;
+  if (record.fetchedAt === MANUAL_TRIGGER_RATE_LIMIT_US_SK) return false;
   if (record.recordType === "manual_trigger_rate_limit") return false;
   if (Number.isNaN(Date.parse(record.fetchedAt))) return false;
 
   if (Array.isArray(record.countries) && record.countries.length > 0) return true;
   if (Array.isArray(record.categories)) return true;
+  if (typeof record.totalJobs === "number") return true;
 
   return false;
 }
@@ -128,17 +151,23 @@ export function normalizeRun(run: JobRunRecord): JobRunRecord {
     const countries = sortByCountryDisplayOrder(
       run.countries.map((country) => {
         const categories = country.categories ?? [];
+        const totalJobs =
+          categories.length > 0
+            ? countUniqueJobs(categories)
+            : (country.totalJobs ?? 0);
         return enrichCountryRun({
           ...country,
           categories,
-          totalJobs: countUniqueJobs(categories),
+          totalJobs,
         });
       }),
     );
 
     return {
       ...run,
-      totalJobs: countries.reduce((sum, country) => sum + country.totalJobs, 0),
+      totalJobs:
+        run.totalJobs ??
+        countries.reduce((sum, country) => sum + country.totalJobs, 0),
       countryCount: run.countryCount ?? countries.length,
       categoryCount:
         run.categoryCount ??

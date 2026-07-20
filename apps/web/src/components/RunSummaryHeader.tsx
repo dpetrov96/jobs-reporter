@@ -3,8 +3,10 @@ import {
   countActiveCountries,
   formatRunWhen,
   humanizePostedWithin,
+  isDailySummaryRun,
   normalizeRun,
 } from "@jobs-reporter/shared";
+import { DailySummaryBadge } from "./DailySummaryBadge";
 import { RunNowButton } from "./RunNowButton";
 
 function Dot() {
@@ -18,6 +20,7 @@ function Dot() {
 export function RunSummaryHeader({
   run,
   apiUrl,
+  scrapeRegion = "europe",
   isScanning = false,
   onScanStart,
   onScanTriggered,
@@ -25,6 +28,7 @@ export function RunSummaryHeader({
 }: {
   run: JobRunRecord;
   apiUrl?: string;
+  scrapeRegion?: "europe" | "usa";
   isScanning?: boolean;
   onScanStart?: () => void;
   onScanTriggered?: () => void;
@@ -32,7 +36,13 @@ export function RunSummaryHeader({
 }) {
   const normalized = normalizeRun(run);
   const countriesWithJobs = countActiveCountries(run);
-  const period = humanizePostedWithin(normalized.postedWithinLabel);
+  const isDaily = isDailySummaryRun(run);
+  const whenLabel = isDaily && run.dayLabel ? run.dayLabel : formatRunWhen(run.fetchedAt);
+  const period = isDaily
+    ? run.scrapeCount
+      ? `${run.scrapeCount} scrapes`
+      : "Today's scrapes"
+    : humanizePostedWithin(normalized.postedWithinLabel);
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-lg bg-zinc-50 px-2.5 py-2 ring-1 ring-zinc-200/70 sm:px-3">
@@ -44,7 +54,10 @@ export function RunSummaryHeader({
           </span>
         ) : (
           <>
-            <span className="font-semibold text-zinc-900">{formatRunWhen(run.fetchedAt)}</span>
+            <span className="inline-flex flex-wrap items-center gap-2">
+              <span className="font-semibold text-zinc-900">{whenLabel}</span>
+              {isDaily ? <DailySummaryBadge /> : null}
+            </span>
             <Dot />
             {period}
             <span className="hidden sm:inline">
@@ -64,7 +77,7 @@ export function RunSummaryHeader({
             {run.totalJobs} jobs · {countriesWithJobs}/{normalized.countryCount}
           </p>
         ) : null}
-        {apiUrl ? (
+        {apiUrl && scrapeRegion === "europe" ? (
           <RunNowButton
             apiUrl={apiUrl}
             compact

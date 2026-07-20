@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getTriggerFetchStatus, triggerFetch } from "@jobs-reporter/shared";
+import type { ScrapeRegionId } from "@jobs-reporter/shared";
 
 function formatCooldown(seconds: number): string {
   if (seconds < 60) return `${seconds}s`;
@@ -12,12 +13,14 @@ function formatCooldown(seconds: number): string {
 
 export function RunNowButton({
   apiUrl,
+  scrapeRegion = "europe",
   onTriggered,
   onScanStart,
   onScanEnd,
   compact = false,
 }: {
   apiUrl: string;
+  scrapeRegion?: ScrapeRegionId;
   onTriggered?: () => void;
   onScanStart?: () => void;
   onScanEnd?: () => void;
@@ -32,7 +35,7 @@ export function RunNowButton({
 
   const refreshStatus = useCallback(async () => {
     try {
-      const status = await getTriggerFetchStatus(apiUrl);
+      const status = await getTriggerFetchStatus(apiUrl, scrapeRegion);
       setCanTrigger(status.canTrigger);
       setRetryAfterSeconds(status.retryAfterSeconds);
       setError(null);
@@ -41,7 +44,7 @@ export function RunNowButton({
     } finally {
       setLoading(false);
     }
-  }, [apiUrl]);
+  }, [apiUrl, scrapeRegion]);
 
   useEffect(() => {
     void refreshStatus();
@@ -70,7 +73,7 @@ export function RunNowButton({
     setMessage(null);
 
     try {
-      const result = await triggerFetch(apiUrl);
+      const result = await triggerFetch(apiUrl, scrapeRegion);
       setMessage("Checking…");
       setCanTrigger(false);
       setRetryAfterSeconds(result.retryAfterSeconds ?? 1800);
@@ -108,13 +111,18 @@ export function RunNowButton({
         <button
           type="button"
           disabled={disabled}
-          onClick={() => void handleTrigger()}
+          onClick={(event) => {
+            event.stopPropagation();
+            void handleTrigger();
+          }}
           className="rounded-md bg-zinc-900 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-300"
         >
           {label}
         </button>
         {(message || error) && (
-          <span className={`max-w-[8rem] text-right text-[10px] leading-tight ${error ? "text-red-500" : "text-zinc-400"}`}>
+          <span
+            className={`max-w-[8rem] text-right text-[10px] leading-tight ${error ? "text-red-500" : "text-zinc-400"}`}
+          >
             {error ?? message}
           </span>
         )}

@@ -31,10 +31,14 @@ export async function fetchRuns(
   baseUrl: string,
   options: FetchRunsOptions = {}
 ): Promise<ListRunsResponse> {
-  const { limit = 20, cursor } = options;
+  const { limit = 20, cursor, scrapeRegion, reportKind } = options;
   const url = new URL("/runs", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
   url.searchParams.set("limit", String(limit));
   if (cursor) url.searchParams.set("cursor", cursor);
+  if (scrapeRegion) url.searchParams.set("region", scrapeRegion);
+  if (reportKind && reportKind !== "all") {
+    url.searchParams.set("kind", reportKind);
+  }
   const response = await fetch(url.toString());
   return parseJson<ListRunsResponse>(response);
 }
@@ -46,19 +50,31 @@ export async function fetchRun(baseUrl: string, fetchedAt: string): Promise<GetR
   return parseJson<GetRunResponse>(response);
 }
 
-function triggerUrl(baseUrl: string): URL {
-  return new URL("/runs/trigger", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+function triggerUrl(baseUrl: string, scrapeRegion?: "europe" | "usa"): URL {
+  const url = new URL("/runs/trigger", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  if (scrapeRegion && scrapeRegion !== "europe") {
+    url.searchParams.set("region", scrapeRegion);
+  }
+  return url;
 }
 
 export async function getTriggerFetchStatus(
-  baseUrl: string
+  baseUrl: string,
+  scrapeRegion: "europe" | "usa" = "europe"
 ): Promise<TriggerFetchStatusResponse> {
-  const response = await fetch(triggerUrl(baseUrl).toString());
+  const response = await fetch(triggerUrl(baseUrl, scrapeRegion).toString());
   return parseJson<TriggerFetchStatusResponse>(response);
 }
 
-export async function triggerFetch(baseUrl: string): Promise<TriggerFetchResponse> {
-  const response = await fetch(triggerUrl(baseUrl).toString(), { method: "POST" });
+export async function triggerFetch(
+  baseUrl: string,
+  scrapeRegion: "europe" | "usa" = "europe"
+): Promise<TriggerFetchResponse> {
+  const response = await fetch(triggerUrl(baseUrl, scrapeRegion).toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ region: scrapeRegion }),
+  });
   const data = await response.json() as TriggerFetchResponse & { error?: string };
 
   if (!response.ok) {

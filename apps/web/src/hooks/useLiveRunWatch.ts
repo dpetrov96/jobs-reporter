@@ -2,29 +2,36 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchRuns,
   formatCountdown,
-  getMsUntilNextScheduledFetch,
+  getMsUntilNextScheduledFetchForRegion,
+  isHourlyRun,
   isJobRunRecord,
-  isNearCronSlot,
+  isNearCronSlotForRegion,
 } from "@jobs-reporter/shared";
-import type { JobRunRecord } from "@jobs-reporter/shared";
+import type { JobRunRecord, ScrapeRegionId } from "@jobs-reporter/shared";
 
 const NORMAL_POLL_MS = 30_000;
 const FAST_POLL_MS = 12_000;
 
 export function useLiveRunWatch({
   apiUrl,
+  scrapeRegion = "europe",
   knownFetchedAt,
   enabled = true,
   onNewRun,
 }: {
   apiUrl: string;
+  scrapeRegion?: ScrapeRegionId;
   knownFetchedAt?: string;
   enabled?: boolean;
   onNewRun: (run: JobRunRecord, previousFetchedAt?: string) => void;
 }) {
   const knownFetchedAtRef = useRef(knownFetchedAt);
-  const [countdownMs, setCountdownMs] = useState(() => getMsUntilNextScheduledFetch());
-  const [nearCronSlot, setNearCronSlot] = useState(() => isNearCronSlot());
+  const [countdownMs, setCountdownMs] = useState(() =>
+    getMsUntilNextScheduledFetchForRegion(scrapeRegion)
+  );
+  const [nearCronSlot, setNearCronSlot] = useState(() =>
+    isNearCronSlotForRegion(scrapeRegion)
+  );
   const [newRunFlash, setNewRunFlash] = useState<{
     totalJobs: number;
     previousTotalJobs?: number;
@@ -35,18 +42,18 @@ export function useLiveRunWatch({
   useEffect(() => {
     const tick = () => {
       const now = new Date();
-      setCountdownMs(getMsUntilNextScheduledFetch(now));
-      setNearCronSlot(isNearCronSlot(now));
+      setCountdownMs(getMsUntilNextScheduledFetchForRegion(scrapeRegion, now));
+      setNearCronSlot(isNearCronSlotForRegion(scrapeRegion, now));
     };
 
     tick();
     const timer = window.setInterval(tick, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [scrapeRegion]);
 
   const checkForNewRun = useCallback(async () => {
-    const response = await fetchRuns(apiUrl, { limit: 3 });
-    const run = response.runs?.find(isJobRunRecord);
+    const response = await fetchRuns(apiUrl, { limit: 3, scrapeRegion });
+    const run = response.runs?.find((item) => isJobRunRecord(item) && isHourlyRun(item));
     if (!run) return;
 
     const previousFetchedAt = knownFetchedAtRef.current;
@@ -60,7 +67,7 @@ export function useLiveRunWatch({
     } else if (!previousFetchedAt) {
       knownFetchedAtRef.current = run.fetchedAt;
     }
-  }, [apiUrl, onNewRun]);
+  }, [apiUrl, onNewRun, scrapeRegion]);
 
   useEffect(() => {
     if (!enabled) return;

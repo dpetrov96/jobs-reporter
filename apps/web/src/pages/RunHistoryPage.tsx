@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchRuns, isJobRunRecord } from "@jobs-reporter/shared";
-import type { JobRunRecord } from "@jobs-reporter/shared";
+import { fetchRuns, getScrapeRegion, isJobRunRecord } from "@jobs-reporter/shared";
+import type { JobRunRecord, RunReportKindFilter } from "@jobs-reporter/shared";
+import { RegionTabs } from "../components/RegionTabs";
 import { RunHistoryPagination } from "../components/RunHistoryPagination";
 import { RunHistoryRow } from "../components/RunHistoryRow";
+import { RunKindFilter } from "../components/RunKindFilter";
+import { useScrapeRegion } from "../hooks/useScrapeRegion";
 
 const HISTORY_PAGE_SIZE = 10;
 
@@ -17,38 +20,53 @@ function LoadingState({ label }: { label: string }) {
 }
 
 export function RunHistoryPage({ apiUrl }: { apiUrl: string }) {
+  const { region, setRegion } = useScrapeRegion();
+  const [kindFilter, setKindFilter] = useState<RunReportKindFilter>("all");
   const [runs, setRuns] = useState<JobRunRecord[]>([]);
   const [page, setPage] = useState(0);
   const [cursors, setCursors] = useState<string[]>([""]);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
-  const loadPage = useCallback(async () => {
+  useEffect(() => {
+    setPage(0);
+    setCursors([""]);
+    setNextCursor(undefined);
+    setRuns([]);
+  }, [region, kindFilter]);
+
+  useEffect(() => {
+    const requestId = ++requestIdRef.current;
+    const cursor = cursors[page] ?? "";
+
     setLoading(true);
     setError(null);
 
-    const cursor = cursors[page];
-
-    try {
-      const response = await fetchRuns(apiUrl, {
-        limit: HISTORY_PAGE_SIZE,
-        ...(cursor ? { cursor } : {}),
-      });
-      setRuns(response.runs.filter(isJobRunRecord));
-      setNextCursor(response.nextCursor);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load run history");
-      setRuns([]);
-      setNextCursor(undefined);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiUrl, cursors, page]);
-
-  useEffect(() => {
-    void loadPage();
-  }, [loadPage]);
+    void (async () => {
+      try {
+        const response = await fetchRuns(apiUrl, {
+          limit: HISTORY_PAGE_SIZE,
+          scrapeRegion: region,
+          reportKind: kindFilter,
+          ...(cursor ? { cursor } : {}),
+        });
+        if (requestId !== requestIdRef.current) return;
+        setRuns(response.runs.filter(isJobRunRecord));
+        setNextCursor(response.nextCursor);
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        setError(err instanceof Error ? err.message : "Failed to load run history");
+        setRuns([]);
+        setNextCursor(undefined);
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+        }
+      }
+    })();
+  }, [apiUrl, cursors, kindFilter, page, region]);
 
   function goToNextPage() {
     if (!nextCursor) return;
@@ -65,25 +83,44 @@ export function RunHistoryPage({ apiUrl }: { apiUrl: string }) {
     setPage((current) => Math.max(0, current - 1));
   }
 
+  const regionLabel = getScrapeRegion(region).label;
+  const regionQuery = region === "usa" ? "?region=usa" : "";
+  const emptyLabel =
+    kindFilter === "daily"
+      ? `No daily summaries for ${regionLabel} yet.`
+      : kindFilter === "hourly"
+        ? `No hourly scrapes for ${regionLabel} yet.`
+        : `No ${regionLabel} runs stored yet.`;
+
   return (
     <main className="mx-auto max-w-3xl px-3 py-3 sm:px-6 sm:py-5 lg:max-w-4xl">
       <header className="border-b border-zinc-200 pb-4">
-        <Link to="/" className="text-xs text-zinc-400 transition hover:text-zinc-600">
+        <Link
+          to={`/${regionQuery}`}
+          className="text-xs text-zinc-400 transition hover:text-zinc-600"
+        >
           ← Latest report
         </Link>
         <h1 className="mt-2 text-lg font-semibold text-zinc-900 sm:text-xl">Previous runs</h1>
-        <p className="mt-1 text-sm text-zinc-500">Browse past LinkedIn fetch reports</p>
+        <p className="mt-1 text-sm text-zinc-500">
+          Browse past LinkedIn fetch reports · {regionLabel}
+        </p>
       </header>
+
+      <div className="mt-4 space-y-3">
+        <RegionTabs activeRegion={region} onChange={setRegion} />
+        <RunKindFilter value={kindFilter} onChange={setKindFilter} />
+      </div>
 
       {error ? <div className="py-4 text-sm text-red-600">{error}</div> : null}
 
       {loading ? (
         <LoadingState label="Loading…" />
       ) : runs.length === 0 ? (
-        <div className="py-12 text-center text-sm text-zinc-400">No runs stored yet.</div>
+        <div className="py-12 text-center text-sm text-zinc-400">{emptyLabel}</div>
       ) : (
         <>
-          <div className="mt-2 divide-y divide-zinc-200">
+          <div className="mt-3 space-y-2">
             {runs.map((run) => (
               <RunHistoryRow key={run.fetchedAt} run={run} />
             ))}

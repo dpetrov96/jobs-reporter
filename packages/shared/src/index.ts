@@ -10,3 +10,4 @@ export * from "./keywordLabel.js";
 export * from "./keywords.js";
 export * from "./schedule.js";
 export * from "./scrapeRegions.js";
+export * from "./runRegions.js";
