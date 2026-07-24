@@ -1,4 +1,4 @@
-import { enrichCountryRun, getCountryFlag, lookupCountry, sortByCountryDisplayOrder } from "./countries.js";
+import { enrichCountryRun, fillConfiguredCountriesForRegion, getCountryFlag, lookupCountry } from "./countries.js";
 import { countUniqueJobs } from "./jobCounts.js";
 
 export interface JobListing {
@@ -8,7 +8,7 @@ export interface JobListing {
   company: string;
   url: string;
   location?: string;
-  workMode?: "remote" | "hybrid" | "onsite";
+  employmentType?: string;
   datePosted?: string;
   dateLabel?: string;
   applicantCount?: number;
@@ -111,13 +111,6 @@ export interface TriggerFetchResponse {
 export const DEFAULT_API_URL =
   "https://z8q1cuu3g3.execute-api.eu-central-1.amazonaws.com";
 
-export function workModeLabel(workMode?: string): string {
-  if (!workMode) return "";
-  if (workMode === "remote") return "Remote";
-  if (workMode === "hybrid") return "Hybrid";
-  return "On-site";
-}
-
 export function formatRunDate(iso: string): string {
   return new Date(iso).toLocaleString();
 }
@@ -148,7 +141,7 @@ export function isJobRunRecord(run: unknown): run is JobRunRecord {
 
 export function normalizeRun(run: JobRunRecord): JobRunRecord {
   if (run.countries?.length) {
-    const countries = sortByCountryDisplayOrder(
+    const countries = fillConfiguredCountriesForRegion(
       run.countries.map((country) => {
         const categories = country.categories ?? [];
         const totalJobs =
@@ -161,6 +154,7 @@ export function normalizeRun(run: JobRunRecord): JobRunRecord {
           totalJobs,
         });
       }),
+      run.scrapeRegion,
     );
 
     return {

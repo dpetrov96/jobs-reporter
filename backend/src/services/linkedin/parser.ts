@@ -50,9 +50,41 @@ export function buildLinkedInJobDetailUrl(jobId: string): string {
   return `${LINKEDIN_JOB_DETAIL_BASE}/${numericId}`;
 }
 
+export function parseEmploymentTypeFromDetailHtml(html: string): string | undefined {
+  const $ = cheerio.load(html);
+
+  let employmentType: string | undefined;
+
+  $(".description__job-criteria-item").each((_, element) => {
+    const $item = $(element);
+    const label = $item
+      .find(".description__job-criteria-subheader")
+      .first()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!/^employment type$/i.test(label)) return;
+
+    const value = $item
+      .find(".description__job-criteria-text")
+      .first()
+      .text()
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (value) {
+      employmentType = value;
+      return false;
+    }
+  });
+
+  return employmentType;
+}
+
 export function parseLinkedInJobDetailPage(html: string): Pick<
   JobListing,
-  "dateLabel" | "applicantCount" | "applicantsLabel" | "description"
+  "dateLabel" | "applicantCount" | "applicantsLabel" | "description" | "employmentType"
 > {
   const $ = cheerio.load(html);
 
@@ -65,6 +97,7 @@ export function parseLinkedInJobDetailPage(html: string): Pick<
   return {
     dateLabel,
     description: parseJobDescriptionFromDetailHtml(html),
+    employmentType: parseEmploymentTypeFromDetailHtml(html),
     ...parseApplicantsFromText(applicantText),
   };
 }
@@ -131,25 +164,9 @@ export function buildLinkedInSearchUrl(options: {
   return `${LINKEDIN_SEARCH_BASE}?${params.toString()}`;
 }
 
-function parseLocationAndWorkMode(locationText: string): {
-  location?: string;
-  workMode?: "remote" | "hybrid" | "onsite";
-} {
+function parseLocation(locationText: string): string | undefined {
   const text = locationText.replace(/\s+/g, " ").trim();
-  if (!text) return {};
-
-  if (/\bremote\b/i.test(text)) {
-    return { location: text, workMode: "remote" };
-  }
-
-  if (/\bhybrid\b/i.test(text)) {
-    return {
-      location: text.replace(/\bhybrid\b/gi, "").replace(/[()]/g, "").trim(),
-      workMode: "hybrid",
-    };
-  }
-
-  return { location: text, workMode: "onsite" };
+  return text || undefined;
 }
 
 export function parseLinkedInListingPage(html: string): JobListing[] {
@@ -187,7 +204,7 @@ export function parseLinkedInListingPage(html: string): JobListing[] {
 
       const datePosted = $card.find("time").first().attr("datetime")?.trim();
       const dateLabel = $card.find("time").first().text().replace(/\s+/g, " ").trim();
-      const { location, workMode } = parseLocationAndWorkMode(locationText);
+      const location = parseLocation(locationText);
       const { applicantCount, applicantsLabel } = parseApplicantsFromCard($card, $);
 
       const companyLogoUrl =
@@ -202,7 +219,6 @@ export function parseLinkedInListingPage(html: string): JobListing[] {
         company: company || "Unknown",
         url: linkedInJobViewUrl(id),
         location,
-        workMode,
         datePosted,
         dateLabel: dateLabel || undefined,
         applicantCount,

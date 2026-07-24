@@ -1,4 +1,4 @@
-import { getCountryFlag, sortByCountryDisplayOrder } from "../../shared/countries.js";
+import { fillConfiguredCountriesForRegion, getCountryFlag, sortByCountryDisplayOrder } from "../../shared/countries.js";
 import { formatApplicants, isJobFreshWithinMinutes } from "../linkedin/jobTime.js";
 import type { JobListing } from "../linkedin/types.js";
 import type { CountryRunResult, JobReportMeta } from "./types.js";
@@ -11,13 +11,6 @@ function escapeHtml(value: string): string {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
-}
-
-function workModeLabel(workMode?: JobListing["workMode"]): string {
-  if (!workMode) return "";
-  if (workMode === "remote") return "Remote";
-  if (workMode === "hybrid") return "Hybrid";
-  return "On-site";
 }
 
 function companyInitials(company: string): string {
@@ -75,15 +68,27 @@ function formatJobDateHtml(job: JobListing): string {
     : escaped;
 }
 
+function isContractEmploymentType(employmentType: string): boolean {
+  return /\bcontract\b/i.test(employmentType);
+}
+
+function buildEmploymentTypeHtml(employmentType: string): string {
+  const escaped = escapeHtml(employmentType);
+  if (isContractEmploymentType(employmentType)) {
+    return `<span class="employment-type employment-type-contract">${escaped}</span>`;
+  }
+  return `<span class="employment-type">${escaped}</span>`;
+}
+
 function buildJobMetaHtml(job: JobListing, fallbackLocation: string): string {
   const location = job.location ?? fallbackLocation;
-  const mode = workModeLabel(job.workMode);
+  const employmentType = job.employmentType?.trim();
   const applicants = formatApplicants(job);
   const parts = [
     escapeHtml(location),
     applicants ? escapeHtml(applicants) : "",
     formatJobDateHtml(job),
-    mode ? escapeHtml(mode) : "",
+    employmentType ? buildEmploymentTypeHtml(employmentType) : "",
   ].filter(Boolean);
 
   return parts.join(" · ");
@@ -172,7 +177,13 @@ function buildCountrySection(country: CountryRunResult): string {
   const companyGroups = groupJobsByCompany(country.categories);
 
   if (country.totalJobs === 0 || companyGroups.length === 0) {
-    return "";
+    return `
+    <tr>
+      <td class="country-section">
+        ${buildCountryPill(country)}
+      </td>
+    </tr>
+  `.trim();
   }
 
   const companies = companyGroups
@@ -226,6 +237,21 @@ const THEME_CSS = `
   .job-keyword-cell { vertical-align: top; width: 1%; white-space: nowrap; padding-left: 8px; text-align: right; }
   .job-meta-cell { padding-top: 2px; }
   .job-meta { font-size: 12px; color: #71717a; line-height: 1.35; }
+  .employment-type {
+    display: inline-block;
+    border-radius: 4px;
+    background: #f4f4f5;
+    color: #52525b;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    line-height: 1.4;
+  }
+  .employment-type-contract {
+    background: #d1fae5;
+    color: #047857;
+    box-shadow: inset 0 0 0 1px #a7f3d0;
+  }
   .job-date-fresh { color: #059669; font-weight: 600; }
   .job-keyword { display: inline-block; padding: 2px 6px; font-size: 10px; font-weight: 500; color: #71717a; background: #f4f4f5; border-radius: 4px; white-space: nowrap; }
   .empty-cell { padding: 14px; font-size: 13px; font-style: italic; color: #71717a; text-align: center; }
@@ -234,7 +260,10 @@ const THEME_CSS = `
 export function buildJobReportHtml(meta: JobReportMeta): string {
   const postedWithinLabel = meta.postedWithinLabel ?? "the selected period";
   const totalJobs = meta.countries.reduce((sum, country) => sum + country.totalJobs, 0);
-  const sortedCountries = sortByCountryDisplayOrder(meta.countries);
+  const sortedCountries = fillConfiguredCountriesForRegion(
+    meta.countries,
+    meta.scrapeRegion
+  );
   const countriesWithJobs = sortedCountries.filter((country) => country.totalJobs > 0).length;
   const isDaily = meta.reportKind === "daily";
   const when = isDaily

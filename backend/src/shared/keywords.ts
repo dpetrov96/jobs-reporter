@@ -6,6 +6,7 @@ export interface KeywordBadge {
 /** Single source of truth — keep backend JOB_KEYWORDS / constants in sync. */
 export const JOB_KEYWORD_BADGES: Record<string, KeywordBadge> = {
   "python developer": { emoji: "🐍", label: "Python" },
+  "backend developer": { emoji: "🛠️", label: "Backend" },
   "node.js developer": { emoji: "🟢", label: "Node.js" },
   "fullstack developer": { emoji: "🧩", label: "Fullstack" },
   "front-end developer": { emoji: "🎨", label: "Front-end" },

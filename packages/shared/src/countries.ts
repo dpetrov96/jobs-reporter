@@ -39,10 +39,10 @@ export const JOB_COUNTRY_REGISTRY: JobCountry[] = [
   { code: "US", location: "United States", geoId: "103644278", flag: "🇺🇸" },
 ];
 
-/** Active fetch targets — display order: BG, FR, DE, NL, UK, BE, PL */
-export const COUNTRY_DISPLAY_ORDER = ["BG", "FR", "DE", "NL", "GB", "BE", "PL"] as const;
+/** Active fetch targets — display order: BG, CZ, FR, DE, NL, UK, BE, PL */
+export const COUNTRY_DISPLAY_ORDER = ["BG", "CZ", "FR", "DE", "NL", "GB", "BE", "PL"] as const;
 
-export const DEFAULT_JOB_COUNTRIES = "BG,FR,DE,NL,GB,BE,PL";
+export const DEFAULT_JOB_COUNTRIES = "BG,CZ,FR,DE,NL,GB,BE,PL";
 
 const displayOrderIndex = new Map<string, number>(
   COUNTRY_DISPLAY_ORDER.map((code, index) => [code, index]),
@@ -55,6 +55,57 @@ export function sortByCountryDisplayOrder<T extends { code: string }>(items: T[]
     if (ai !== bi) return ai - bi;
     return a.code.localeCompare(b.code);
   });
+}
+
+/** Ensure all configured Europe markets appear (e.g. CZ right after BG) even before first scrape. */
+export function fillConfiguredCountries<
+  T extends {
+    code: string;
+    location: string;
+    geoId?: string;
+    flag?: string;
+    totalJobs?: number;
+    categories?: Array<{ keyword: string; jobs: unknown[] }>;
+  },
+>(countries: T[], configuredCsv = DEFAULT_JOB_COUNTRIES): T[] {
+  const configured = parseJobCountries(configuredCsv);
+  const byCode = new Map(countries.map((country) => [country.code, country]));
+
+  const merged: T[] = configured.map((cfg) => {
+    const existing = byCode.get(cfg.code);
+    if (existing) return existing;
+
+    return {
+      location: cfg.location,
+      geoId: cfg.geoId,
+      flag: cfg.flag,
+      code: cfg.code,
+      totalJobs: 0,
+      categories: [],
+    } as unknown as T;
+  });
+
+  for (const country of countries) {
+    if (!merged.some((entry) => entry.code === country.code)) {
+      merged.push(country);
+    }
+  }
+
+  return sortByCountryDisplayOrder(merged);
+}
+
+export function fillConfiguredCountriesForRegion<
+  T extends {
+    code: string;
+    location: string;
+    geoId?: string;
+    flag?: string;
+    totalJobs?: number;
+    categories?: Array<{ keyword: string; jobs: unknown[] }>;
+  },
+>(countries: T[], scrapeRegion?: string): T[] {
+  if (scrapeRegion === "usa") return sortByCountryDisplayOrder(countries);
+  return fillConfiguredCountries(countries);
 }
 
 const registryByKey = new Map(

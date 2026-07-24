@@ -37,6 +37,11 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18M6 21V7l6-4 6 4v14M10 10h4M10 14h4" />
     </svg>
   ),
+  trends: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className="h-5 w-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 19V5m0 14h16M7 14v3m4-7v7m4-11v11m4-5v5" />
+    </svg>
+  ),
 };
 
 function SiteNavLink({ item }: { item: NavItem }) {
@@ -59,6 +64,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   const onHome = pathname === "/";
   const onHistory = pathname.startsWith("/history") || pathname.startsWith("/runs/");
+  const onTrends = pathname.startsWith("/trends");
   const onAnalyses =
     pathname.startsWith("/analyses") && !pathname.includes("/companies");
   const onCompanies = pathname === "/companies" || pathname.includes("/companies");
@@ -66,17 +72,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const items: NavItem[] = [
     {
       to: "/",
-      label: "Latest report",
+      label: "Latest",
       shortLabel: "Latest",
-      isActive: onHome && !onHistory && !onAnalyses && !onCompanies,
+      isActive: onHome && !onHistory && !onTrends && !onAnalyses && !onCompanies,
       icon: icons.latest,
     },
     {
       to: "/history",
-      label: "Previous runs",
+      label: "History",
       shortLabel: "History",
       isActive: onHistory,
       icon: icons.history,
+    },
+    {
+      to: "/trends",
+      label: "Trends",
+      shortLabel: "Trends",
+      isActive: onTrends,
+      icon: icons.trends,
     },
     {
       to: "/analyses",
@@ -99,7 +112,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1">{children}</div>
       <footer className="border-t border-zinc-200/80 bg-zinc-50/90 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-lg">
         <nav
-          className="mx-auto grid max-w-2xl grid-cols-4 gap-1.5 px-2 sm:max-w-3xl sm:gap-2 sm:px-4"
+          className="mx-auto grid max-w-3xl grid-cols-5 gap-1 px-1.5 sm:gap-1.5 sm:px-4"
           aria-label="Site"
         >
           {items.map((item) => (

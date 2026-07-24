@@ -67,13 +67,13 @@ Parameters:
 
   JobKeywords:
     Type: String
-    Default: "python developer,node.js developer,fullstack developer,front-end developer,ai engineer,react native"
+    Default: "python developer,backend developer,node.js developer,fullstack developer,front-end developer,ai engineer,react native"
     Description: Comma-separated LinkedIn search keywords (20 newest per keyword)
 
   JobCountries:
     Type: String
-    Default: "BG,FR,DE,NL,GB,BE,PL"
-    Description: Comma-separated country codes (BG,FR,DE,NL,GB,BE,PL) or "all"
+    Default: "BG,CZ,FR,DE,NL,GB,BE,PL"
+    Description: Comma-separated country codes (BG,CZ,FR,DE,NL,GB,BE,PL) or "all"
 
   JobCountriesUs:
     Type: String

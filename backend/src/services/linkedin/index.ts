@@ -87,6 +87,7 @@ async function enrichJobsFromDetail(jobs: JobListing[]): Promise<JobListing[]> {
             ...(detail.dateLabel ? { dateLabel: detail.dateLabel } : {}),
             ...(detail.applicantCount != null ? { applicantCount: detail.applicantCount } : {}),
             ...(detail.applicantsLabel ? { applicantsLabel: detail.applicantsLabel } : {}),
+            ...(detail.employmentType ? { employmentType: detail.employmentType } : {}),
           };
         } catch (error) {
           console.warn(`[linkedin] detail enrich failed for ${job.id}:`, error);

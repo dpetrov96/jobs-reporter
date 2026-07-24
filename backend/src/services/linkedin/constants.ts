@@ -1,5 +1,6 @@
 export const DEFAULT_JOB_KEYWORDS = [
   "python developer",
+  "backend developer",
   "node.js developer",
   "fullstack developer",
   "front-end developer",

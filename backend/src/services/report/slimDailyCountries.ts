@@ -11,7 +11,7 @@ function slimJob(job: JobListing, mode: "standard" | "compact"): JobListing {
       company: job.company,
       url: job.url,
       location: job.location,
-      workMode: job.workMode,
+      employmentType: job.employmentType,
       keyword: job.keyword,
     };
   }
@@ -23,7 +23,7 @@ function slimJob(job: JobListing, mode: "standard" | "compact"): JobListing {
     company: job.company,
     url: job.url,
     location: job.location,
-    workMode: job.workMode,
+    employmentType: job.employmentType,
     datePosted: job.datePosted,
     dateLabel: job.dateLabel,
     applicantCount: job.applicantCount,

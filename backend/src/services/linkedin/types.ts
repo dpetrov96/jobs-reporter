@@ -5,7 +5,7 @@ export interface JobListing {
   company: string;
   url: string;
   location?: string;
-  workMode?: "remote" | "hybrid" | "onsite";
+  employmentType?: string;
   datePosted?: string;
   dateLabel?: string;
   applicantCount?: number;

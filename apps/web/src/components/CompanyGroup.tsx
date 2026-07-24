@@ -4,10 +4,10 @@ import {
   isHighApplicantJob,
   isJobFreshWithinMinutes,
   jobDateDisplay,
-  workModeLabel,
 } from "@jobs-reporter/shared";
 import type { CompanyGroup as CompanyGroupData } from "../utils/groupByCompany";
 import { formatKeywordBadge } from "@jobs-reporter/shared";
+import { EmploymentTypeBadge } from "./EmploymentTypeBadge";
 
 function companyInitials(company?: string): string {
   const name = (company ?? "").trim();
@@ -49,7 +49,7 @@ function CompactJobRow({
   job: JobListing;
   fallbackLocation: string;
 }) {
-  const mode = workModeLabel(job.workMode);
+  const employmentType = job.employmentType?.trim();
   const when = jobDateDisplay(job);
   const isFresh = isJobFreshWithinMinutes(job, 15);
   const applicants = formatApplicants(job);
@@ -88,12 +88,12 @@ function CompactJobRow({
               ·
             </span>
             <span className={isFresh ? "font-medium text-emerald-600" : undefined}>{when}</span>
-            {mode ? (
+            {employmentType ? (
               <>
                 <span className="mx-1" aria-hidden>
                   ·
                 </span>
-                {mode}
+                <EmploymentTypeBadge value={employmentType} />
               </>
             ) : null}
           </span>

@@ -34,3 +34,7 @@ export function humanizePostedWithin(label?: string): string {
 
   return value.replace(/^the /i, "").replace(/^\w/, (char) => char.toUpperCase());
 }
+
+export function isContractEmploymentType(employmentType?: string): boolean {
+  return /\bcontract\b/i.test(employmentType ?? "");
+}

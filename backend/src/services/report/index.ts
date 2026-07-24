@@ -29,11 +29,11 @@ export function logJobReport(meta: JobReportMeta): void {
 
       for (const [index, job] of category.jobs.entries()) {
         const location = job.location ?? "—";
-        const workMode = job.workMode ? ` (${job.workMode})` : "";
+        const employmentType = job.employmentType ? ` (${job.employmentType})` : "";
         const date = job.dateLabel ?? job.datePosted ?? "—";
 
         console.log(
-          `  ${index + 1}. ${job.title} @ ${job.company} — ${location}${workMode} — ${date}`
+          `  ${index + 1}. ${job.title} @ ${job.company} — ${location}${employmentType} — ${date}`
         );
         console.log(`     ${job.url}`);
       }
