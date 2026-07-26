@@ -62,7 +62,7 @@ function SiteNavLink({ item }: { item: NavItem }) {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
-  const onHome = pathname === "/";
+  const onHome = pathname === "/" || pathname === "/today";
   const onHistory = pathname.startsWith("/history") || pathname.startsWith("/runs/");
   const onTrends = pathname.startsWith("/trends");
   const onAnalyses =

@@ -8,6 +8,7 @@ import { AnalysisListPage } from "./pages/AnalysisListPage";
 import { RunDetailPage } from "./pages/RunDetailPage";
 import { RunHistoryPage } from "./pages/RunHistoryPage";
 import { RunListPage } from "./pages/RunListPage";
+import { DayOverviewPage } from "./pages/DayOverviewPage";
 import { TrendsPage } from "./pages/TrendsPage";
 
 const API_URL = import.meta.env.VITE_API_URL ?? DEFAULT_API_URL;
@@ -17,6 +18,7 @@ export default function App() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<RunListPage apiUrl={API_URL} />} />
+        <Route path="/today" element={<DayOverviewPage apiUrl={API_URL} />} />
         <Route path="/history" element={<RunHistoryPage apiUrl={API_URL} />} />
         <Route path="/trends" element={<TrendsPage apiUrl={API_URL} />} />
         <Route path="/runs/:fetchedAt" element={<RunDetailPage apiUrl={API_URL} />} />

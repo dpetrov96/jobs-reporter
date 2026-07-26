@@ -50,6 +50,22 @@ export async function fetchRun(baseUrl: string, fetchedAt: string): Promise<GetR
   return parseJson<GetRunResponse>(response);
 }
 
+export async function fetchDaySummary(
+  baseUrl: string,
+  options: { scrapeRegion?: "europe" | "usa"; day?: string } = {}
+): Promise<GetRunResponse> {
+  const { scrapeRegion, day } = options;
+  const url = new URL("/runs/day", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
+  if (scrapeRegion && scrapeRegion !== "europe") {
+    url.searchParams.set("region", scrapeRegion);
+  }
+  if (day) {
+    url.searchParams.set("day", day);
+  }
+  const response = await fetch(url.toString());
+  return parseJson<GetRunResponse>(response);
+}
+
 function triggerUrl(baseUrl: string, scrapeRegion?: "europe" | "usa"): URL {
   const url = new URL("/runs/trigger", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
   if (scrapeRegion && scrapeRegion !== "europe") {

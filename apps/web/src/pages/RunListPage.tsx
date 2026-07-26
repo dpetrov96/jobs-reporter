@@ -12,6 +12,7 @@ import { useScrapeRegion } from "../hooks/useScrapeRegion";
 import { RegionMarketPanel } from "../components/RegionMarketPanel";
 import { RunReport } from "../components/RunReport";
 import { ScanStatusBanner } from "../components/ScanStatusBanner";
+import { TodayOverviewLink } from "../components/TodayOverviewLink";
 
 function LoadingState({ label }: { label: string }) {
   return (
@@ -223,7 +224,12 @@ export function RunListPage({ apiUrl }: { apiUrl: string }) {
             auto-scan.
           </p>
         ) : (
-          <RunReport run={latestRun} isScanning={scanningRegion === region} />
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <TodayOverviewLink region={region} />
+            </div>
+            <RunReport run={latestRun} isScanning={scanningRegion === region} />
+          </div>
         )}
       </div>
     </main>

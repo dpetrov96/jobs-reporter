@@ -277,6 +277,33 @@ Resources:
         EntryPoints:
           - src/handlers/list-runs.ts
 
+  GetDaySummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Description: Build live daily summary from hourly scrapes for a region-day
+      Handler: get-day-summary.handler
+      Environment:
+        Variables:
+          RUNS_TABLE_NAME: !Ref RunsTableName
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RunsTableName
+      Events:
+        GetDaySummaryApi:
+          Type: HttpApi
+          Properties:
+            Path: /runs/day
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/get-day-summary.ts
+
   GetRunFunction:
     Type: AWS::Serverless::Function
     Properties:
