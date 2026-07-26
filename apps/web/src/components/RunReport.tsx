@@ -3,7 +3,7 @@ import type { JobRunRecord } from "@jobs-reporter/shared";
 import { isDailySummaryRun, normalizeRun } from "@jobs-reporter/shared";
 import { CountryPanel } from "./CountryPanel";
 import { CountryTabs } from "./CountryTabs";
-import { DailySummaryBadge } from "./DailySummaryBadge";
+import { DaySectionsReport } from "./DaySectionsReport";
 import { ScanStatusBanner } from "./ScanStatusBanner";
 
 function defaultCountryCode(countries: ReturnType<typeof normalizeRun>["countries"]): string {
@@ -38,18 +38,12 @@ export function RunReport({
       : "today's scrapes"
     : normalized.postedWithinLabel;
 
+  if (isDaily) {
+    return <DaySectionsReport run={run} />;
+  }
+
   return (
     <div className="space-y-3">
-      {isDaily ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-600">
-          <DailySummaryBadge />
-          {run.dayLabel ? <span className="font-medium text-zinc-900">{run.dayLabel}</span> : null}
-          {run.scrapeCount ? (
-            <span className="text-zinc-500">· {run.scrapeCount} scrapes aggregated</span>
-          ) : null}
-        </div>
-      ) : null}
-
       <div className="sticky top-0 z-10 -mx-3 border-b border-zinc-200/80 bg-white/80 px-3 py-3 backdrop-blur-md sm:-mx-0 sm:px-0 sm:py-4">
         <CountryTabs countries={countries} activeCode={activeCode} onChange={setActiveCode} />
       </div>

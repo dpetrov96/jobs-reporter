@@ -17,6 +17,8 @@ export const BLOCKED_COMPANIES = [
   "hackajob",
   "Crossing Hurdles",
   "VirtueTech Recruitment Group",
+  "Jobs Ai",
+  "Hired",
 ] as const;
 
 function normalizeCompanyName(name: string): string {

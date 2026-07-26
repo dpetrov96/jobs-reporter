@@ -9,6 +9,7 @@ import {
 import { CountryFlag } from "./CountryFlag";
 import { CountryPanel } from "./CountryPanel";
 import { DailySummaryBadge } from "./DailySummaryBadge";
+import { OpenContractJobsButton } from "./OpenContractJobsButton";
 
 function countryDisplayName(country: CountryRunResult): string {
   return country.code === "GB" ? "United Kingdom" : country.location;
@@ -36,7 +37,7 @@ function CountrySection({ country, periodLabel }: { country: CountryRunResult; p
       {hasJobs ? (
         <CountryPanel country={country} postedWithinLabel={periodLabel} />
       ) : (
-        <p className="px-4 py-6 text-center text-sm text-zinc-400">No jobs today</p>
+        <p className="px-4 py-6 text-center text-sm text-zinc-400">No jobs</p>
       )}
     </section>
   );
@@ -54,9 +55,12 @@ export function DaySectionsReport({ run }: { run: JobRunRecord }) {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-600 sm:px-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <DailySummaryBadge />
-          {run.dayLabel ? <span className="font-semibold text-zinc-900">{run.dayLabel}</span> : null}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <DailySummaryBadge />
+            {run.dayLabel ? <span className="font-semibold text-zinc-900">{run.dayLabel}</span> : null}
+          </div>
+          <OpenContractJobsButton run={run} />
         </div>
         <p className="mt-1">
           <span className="font-semibold text-zinc-900">{formatRunWhen(run.fetchedAt)}</span>
